@@ -1,0 +1,4 @@
+dataset:
+  repo: https://github.com/TheOnlyRoshan/ci-triage-dataset
+  pinned_sha: "ce99eb4e0e962a542b70eb3ed0ef3f045631ace4"
+  local_dir: data/dataset
