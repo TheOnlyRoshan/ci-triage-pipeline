@@ -1,6 +1,6 @@
 dataset:
   repo: https://github.com/TheOnlyRoshan/ci-triage-dataset
-  pinned_sha: "ce99eb4e0e962a542b70eb3ed0ef3f045631ace4"
+  pinned_sha: "97167a8d9d4d7976f694decfbefd9d97ddc9ba43"
   local_dir: data/dataset
 split:
   selection_seed: 42
@@ -9,4 +9,4 @@ split:
     genuine_regression: [genuine_regression_013, genuine_regression_015, genuine_regression_017]
     infra: [infra_002, infra_006, infra_008]
     transient: [transient_010, transient_011, transient_014]
-  final_check: [flaky_test_004, flaky_test_005, flaky_test_011, genuine_regression_001, genuine_regression_002, genuine_regression_016, infra_001, infra_007, transient_002, transient_003]
+  final_check: [flaky_test_001, flaky_test_002, flaky_test_011, genuine_regression_002, genuine_regression_018, genuine_regression_019, infra_003, infra_007, transient_003, transient_016]

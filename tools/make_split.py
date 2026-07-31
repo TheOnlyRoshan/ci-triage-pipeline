@@ -1,11 +1,17 @@
-"""Proposes the exemplar / final-check / dev-eval split for config.yaml.
+"""Verifies the committed exemplar / final-check split in config.yaml.
 
-Usage: python tools/make_split.py --dataset-dir data/dataset --seed 42
+Regenerates the final-check selection from the committed seed and asserts
+it matches the committed split (reproducibility check).
+
+Usage: python make_split.py [--config config.yaml]
 """
+import argparse
 import json
 import random
-from collections import defaultdict
+from collections import Counter,defaultdict
 from pathlib import Path
+
+from src.config_loader import load_config
 
 
 def normalize(s: str) -> str:
@@ -44,8 +50,7 @@ def load_metadata(dataset_dir: Path) -> list[dict]:
             if data['label'] != file_path.parent.name:
                 raise ValueError(
                     f"Label mismatch in {file_path}: found '{data['label']}', folder '{file_path.parent.name}'")
-            else:
-                records.append(data)
+            records.append(data)
     print(f"Found {len(records)} json files in {dataset_dir}")
     return records
 
@@ -89,7 +94,8 @@ def pick_final_check(examples: list[dict], exemplar_ids: set[str],
         Args:
             examples: Metadata dicts from load_metadata.
             exemplar_ids: IDs reserved as few-shot exemplars (excluded from the pool).
-            seed: RNG seed; same seed + same dataset = same selection.
+            seed: Base RNG seed; each class samples from its own RNG seeded
+                with "seed:label", so results are independent of class order.
             quotas: Mapping of label -> number of examples to select.
 
         Returns:
@@ -100,11 +106,11 @@ def pick_final_check(examples: list[dict], exemplar_ids: set[str],
         """
     pool: defaultdict[str, list[str]] = defaultdict(list)
     final_check_ids: list[str] = []
-    rng = random.Random(seed)
     for example in examples:
         if example['id'] not in exemplar_ids:
             pool[example['label']].append(example['id'])
     for label, k in quotas.items():
+        rng = random.Random(f"{seed}:{label}")
         class_ids = sorted(pool[label])
         try:
             picked = rng.sample(class_ids, k)
@@ -165,36 +171,42 @@ def emit_yaml(exemplars: dict[str, list[str]], final_check: list[str], seed: int
 
 
 def main() -> None:
-    path = Path("/Users/roshanpandey/Python Projects/ci-triage-dataset/dataset")  # temporary; argparse replaces this
-    examples = load_metadata(path)
-    candidates = propose_exemplar_candidates(examples)
+    parser = argparse.ArgumentParser(description="Verify the committed split in config.yaml")
+    parser.add_argument("--config", type=Path, default=Path("config.yaml"))
+    args = parser.parse_args()
 
-    exemplars = {
-        "infra": ["infra_006", "infra_008", "infra_002"],
-        "genuine_regression": ["genuine_regression_015", "genuine_regression_013", "genuine_regression_017"],
-        "transient": ["transient_014", "transient_011", "transient_010"],
-        "flaky_test": ["flaky_test_006", "flaky_test_009", "flaky_test_013"],
-    }
+    config = load_config(args.config)
+    seed = config.split.selection_seed
+    exemplars = config.split.exemplars
+    committed_final_check = sorted(config.split.final_check)
+
+    examples = load_metadata(config.dataset.local_dir)
+    label_by_id = {r['id']: r['label'] for r in examples}
+
+    missing = [i for i in committed_final_check if i not in label_by_id]
+    if missing:
+        raise ValueError(f"final_check IDs not found in dataset: {missing}")
+
     exemplar_ids = {i for ids in exemplars.values() for i in ids}
+    quotas = dict(Counter(label_by_id[i] for i in committed_final_check))
 
-    final_check_ids = pick_final_check(examples, exemplar_ids, seed=42,
-                                       quotas={"genuine_regression": 3, "flaky_test": 3, "transient": 2, "infra": 2})
-
-    for label, items in candidates.items():  # present
-        print(f"\n=== {label} ===")
-        for r in items:
-            print(f"{r['id']:<28} {r['log_source']:<10} {r['log_lines']:>4}  {r['injected_fault'][:80]}")
-
-    print(f"\nThe final_check_ids are {final_check_ids}, and the size is {len(final_check_ids)}")
+    final_check_ids = pick_final_check(examples, exemplar_ids, seed=seed, quotas=quotas)
 
     leaked_items = check_leakage(examples, exemplar_ids)
     if leaked_items:
-        print(f"Found leakage: {leaked_items}")
-    else:
-        print("No leakage found")
+        raise ValueError(f"Semantic leakage found: {leaked_items}")
+    print("No semantic leakage found")
 
-    print("\n--- paste into config.yaml ---")
-    print(emit_yaml(exemplars, final_check_ids, seed=42))
+    if final_check_ids != committed_final_check:
+        raise ValueError(
+            f"Split NOT reproducible from seed {seed}.\n"
+            f"  regenerated: {final_check_ids}\n"
+            f"  committed:   {committed_final_check}")
+    print(f"Split verified reproducible from seed {seed} "
+          f"({len(final_check_ids)} final-check IDs match config.yaml)")
+
+    print("\n--- committed split as YAML (should match config.yaml) ---")
+    print(emit_yaml(exemplars, final_check_ids, seed=seed))
     print("--- end ---")
 
 
