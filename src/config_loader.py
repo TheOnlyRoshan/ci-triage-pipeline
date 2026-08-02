@@ -4,6 +4,20 @@ from pathlib import Path
 import yaml
 
 
+def find_project_root(marker: str = "config.yaml") -> Path:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / marker).exists():
+            return parent
+    raise FileNotFoundError(f"Could not find {marker} in any parent directory")
+
+class GithubConfig(BaseModel):
+    token_env_var: str
+    owner: str
+    repo: str
+    job_id: str
+
+
 class DatasetConfig(BaseModel):
     repo: HttpUrl
     pinned_sha: str
@@ -34,6 +48,7 @@ class SplitConfig(BaseModel):
 class PipelineConfig(BaseModel):
     dataset: DatasetConfig
     split: SplitConfig
+    github: GithubConfig
 
 
 def load_config(file_path: Path) -> PipelineConfig:

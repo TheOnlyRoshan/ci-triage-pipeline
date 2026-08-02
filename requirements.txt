@@ -1,2 +1,5 @@
 PyYAML==6.0.2
-pydantic==2.9.2
+pydantic>=2.12
+python-dotenv
+load-dotenv
+requests==2.32.3

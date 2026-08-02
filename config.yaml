@@ -1,6 +1,12 @@
+github:
+  token_env_var: GITHUB_TOKEN
+  owner: 'TheOnlyRoshan'
+  repo: 'expense-tracker-api'
+  job_id: '89767252957'
+
 dataset:
   repo: https://github.com/TheOnlyRoshan/ci-triage-dataset
-  pinned_sha: "97167a8d9d4d7976f694decfbefd9d97ddc9ba43"
+  pinned_sha: '97167a8d9d4d7976f694decfbefd9d97ddc9ba43'
   local_dir: data/dataset
 split:
   selection_seed: 42
