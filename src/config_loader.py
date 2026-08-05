@@ -71,13 +71,16 @@ class PreprocessConfig(BaseModel):
     tail_lines: int = Field(gt=0)
     truncation_marker: str
 
+class PromptConfig(BaseModel):
+    version: str
+    prompts_dir: str
 
 class PipelineConfig(BaseModel):
     dataset: DatasetConfig
     split: SplitConfig
     github: GithubConfig
     preprocessing: PreprocessConfig
-
+    prompt: PromptConfig
 
 def load_config(file_path: Path) -> PipelineConfig:
     try:

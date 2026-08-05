@@ -1,12 +1,5 @@
 import re
 
-from dotenv import load_dotenv
-
-from src.config_loader import load_config, find_project_root, PipelineConfig
-from src.github.auth import get_github_token
-from src.github.job_fetcher import get_failed_step
-from src.github.log_fetcher import fetch_job_log, extract_step_window
-
 
 def strip_noise_lines(raw_text: str, config) -> str:
     cleaned_lines = []
@@ -36,21 +29,7 @@ def extract_relevant_window(clean_text: str, config) -> str:
     tail_lines = cleaned_lines[-number_of_tail_lines:]
     return "\n".join(header_lines + [marker] + tail_lines)
 
+
 def preprocess_log(raw_text: str, config) -> str:
     clean_text = strip_noise_lines(raw_text, config)
     return extract_relevant_window(clean_text, config)
-
-
-load_dotenv()
-config = load_config(find_project_root() / 'config.yaml')
-token = get_github_token(config)
-log = fetch_job_log(config.github.job_id, config.github.owner, config.github.repo, token)
-step = get_failed_step(config.github.job_id, config.github.owner, config.github.repo, token)
-#stripped_noise_lines = strip_noise_lines(extract_step_window(log, step), config)
-#extracted_relevant_window = extract_relevant_window(stripped_noise_lines, config)
-#print('Log after extracting relevant window:', extracted_relevant_window)
-stripped_noise_lines = strip_noise_lines(extract_step_window(log, step), config)
-extracted_relevant_window = extract_relevant_window(stripped_noise_lines, config)
-print('Log after extracting relevant window:', extracted_relevant_window)
-result = preprocess_log(extract_step_window(log, step), config)
-print('Preprocessed log:', result)
