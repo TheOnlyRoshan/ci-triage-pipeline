@@ -4,15 +4,55 @@ github:
   repo: 'expense-tracker-api'
   job_id: '89767252957'
 
+preprocessing:
+  # Patterns are applied per-line via re.sub, which deletes only the matched
+  # substring. Every pattern must therefore be anchored '^...*$' so the whole
+  # line collapses to empty; partial matches leave orphaned residue (e.g.
+  # '^\s*pythonLocation:' leaves ' /opt/hostedtoolcache/...' behind).
+  # Blank-line dropping happens AFTER all substitutions — do not reorder.
+
+  # always applied — structurally zero-signal
+  structural_patterns: [
+    '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s',
+    '\x1b?\[[0-9;]*m',
+    '^##\[(group|endgroup)\].*$'
+  ]
+
+  # toggleable — content judgements, not structural. See EXPERIMENTS.md E1.
+  # Default false: env vars are diagnostic for the `infra` class, and pip
+  # patterns enumerate known line shapes rather than matching structurally.
+  strip_env_block: false
+  env_block_patterns: [
+    '^\s*pythonLocation:.*$',
+    '^\s*PKG_CONFIG_PATH:.*$',
+    '^\s*Python\d?_ROOT_DIR:.*$',
+    '^\s*LD_LIBRARY_PATH:.*$',
+    '^\s*shell:\s.*$',
+    '^\s*env:\s*$'
+  ]
+
+  strip_pip_output: false
+  pip_output_patterns: [
+    '^Successfully installed .*$',
+    '^Requirement already satisfied:.*$',
+    '^Collecting .*$',
+    '^\s*Using cached .*$',
+    '^Installing collected packages:.*$'
+  ]
+  head_lines: 40
+  tail_lines: 60
+  truncation_marker: '...[TRUNCATED {n} LINES]...'
+
 dataset:
   repo: https://github.com/TheOnlyRoshan/ci-triage-dataset
   pinned_sha: '97167a8d9d4d7976f694decfbefd9d97ddc9ba43'
   local_dir: data/dataset
+
 split:
   selection_seed: 42
   exemplars:
-    flaky_test: [flaky_test_006, flaky_test_009, flaky_test_013]
-    genuine_regression: [genuine_regression_013, genuine_regression_015, genuine_regression_017]
-    infra: [infra_002, infra_006, infra_008]
-    transient: [transient_010, transient_011, transient_014]
-  final_check: [flaky_test_001, flaky_test_002, flaky_test_011, genuine_regression_002, genuine_regression_018, genuine_regression_019, infra_003, infra_007, transient_003, transient_016]
+    flaky_test: [ flaky_test_006, flaky_test_009, flaky_test_013 ]
+    genuine_regression: [ genuine_regression_013, genuine_regression_015, genuine_regression_017 ]
+    infra: [ infra_002, infra_006, infra_008 ]
+    transient: [ transient_010, transient_011, transient_014 ]
+  final_check: [ flaky_test_001, flaky_test_002, flaky_test_011, genuine_regression_002, genuine_regression_018, genuine_regression_019, infra_003, infra_007, transient_003, transient_016 ]

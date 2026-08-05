@@ -1,7 +1,7 @@
-from pydantic import BaseModel, HttpUrl, model_validator
 from pathlib import Path
 
 import yaml
+from pydantic import BaseModel, HttpUrl, model_validator, Field
 
 
 def find_project_root(marker: str = "config.yaml") -> Path:
@@ -10,6 +10,7 @@ def find_project_root(marker: str = "config.yaml") -> Path:
         if (parent / marker).exists():
             return parent
     raise FileNotFoundError(f"Could not find {marker} in any parent directory")
+
 
 class GithubConfig(BaseModel):
     token_env_var: str
@@ -45,10 +46,37 @@ class SplitConfig(BaseModel):
         return self
 
 
+import re
+from pydantic import BaseModel, field_validator
+
+
+class PreprocessConfig(BaseModel):
+    structural_patterns: list[str]
+    strip_env_block: bool = False
+    env_block_patterns: list[str] = []
+    strip_pip_output: bool = False
+    pip_output_patterns: list[str] = []
+
+    @field_validator('structural_patterns', 'env_block_patterns', 'pip_output_patterns')
+    @classmethod
+    def patterns_must_compile(cls, patterns: list[str]) -> list[str]:
+        for p in patterns:
+            try:
+                re.compile(p)
+            except re.error as e:
+                raise ValueError(f"Invalid regex {p!r}: {e}") from e
+        return patterns
+
+    head_lines: int = Field(gt=0)
+    tail_lines: int = Field(gt=0)
+    truncation_marker: str
+
+
 class PipelineConfig(BaseModel):
     dataset: DatasetConfig
     split: SplitConfig
     github: GithubConfig
+    preprocessing: PreprocessConfig
 
 
 def load_config(file_path: Path) -> PipelineConfig:

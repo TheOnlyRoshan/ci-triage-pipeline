@@ -8,7 +8,7 @@ Usage: python make_split.py [--config config.yaml]
 import argparse
 import json
 import random
-from collections import Counter,defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from src.config_loader import load_config
