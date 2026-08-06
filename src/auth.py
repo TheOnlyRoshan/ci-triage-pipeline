@@ -1,8 +1,7 @@
 import os
 
 
-def get_github_token(config: dict) -> str:
-    env_var_name = config.github.token_env_var
+def get_secret(env_var_name: str) -> str:
     try:
         return os.environ[env_var_name]
     except KeyError as e:

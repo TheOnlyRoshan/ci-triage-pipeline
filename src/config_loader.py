@@ -75,12 +75,19 @@ class PromptConfig(BaseModel):
     version: str
     prompts_dir: str
 
+class LlmConfig(BaseModel):
+    model: str
+    max_tokens: int
+    temperature: float
+    api_key_env_var: str
+
 class PipelineConfig(BaseModel):
     dataset: DatasetConfig
     split: SplitConfig
     github: GithubConfig
     preprocessing: PreprocessConfig
     prompt: PromptConfig
+    llm: LlmConfig
 
 def load_config(file_path: Path) -> PipelineConfig:
     try:

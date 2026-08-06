@@ -52,6 +52,12 @@ prompt:
   version: 'v1'
   prompts_dir: 'prompts'
 
+llm:
+  model: 'claude-sonnet-4-6'
+  max_tokens: 1024
+  temperature: 0.0
+  api_key_env_var: 'ANTHROPIC_API_KEY'
+
 split:
   selection_seed: 42
   exemplars:
