@@ -6,12 +6,12 @@ it matches the committed split (reproducibility check).
 Usage: python make_split.py [--config config.yaml]
 """
 import argparse
-import json
 import random
 from collections import Counter, defaultdict
 from pathlib import Path
 
 from src.config_loader import load_config
+from src.dataset.loader import load_metadata
 
 
 def normalize(s: str) -> str:
@@ -24,36 +24,6 @@ def normalize(s: str) -> str:
             Normalized string; differences in case and spacing are erased.
         """
     return " ".join(s.lower().split())
-
-
-def load_metadata(dataset_dir: Path) -> list[dict]:
-    """Load all example metadata JSONs from the dataset directory.
-
-        Walks dataset_dir/<label>/<n>.json, parses each file, validates that the
-        'label' field matches its parent folder name, and attaches the absolute
-        path of the example's log file under the 'log_path' key.
-
-        Args:
-            dataset_dir: Root dataset directory containing one subfolder per class.
-
-        Returns:
-            All examples as metadata dicts (one per JSON file).
-
-        Raises:
-            ValueError: If a record's 'label' field does not match its folder name.
-        """
-    records = []
-    for file_path in dataset_dir.glob('*/*.json'):
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            data['log_path'] = (file_path.parent / data['log_file']).resolve()
-            if data['label'] != file_path.parent.name:
-                raise ValueError(
-                    f"Label mismatch in {file_path}: found '{data['label']}', folder '{file_path.parent.name}'")
-            records.append(data)
-    print(f"Found {len(records)} json files in {dataset_dir}")
-    return records
-
 
 def propose_exemplar_candidates(examples: list[dict]) -> dict[str, list[dict]]:
     """Rank exemplar candidates per class for human curation.
@@ -171,6 +141,16 @@ def emit_yaml(exemplars: dict[str, list[str]], final_check: list[str], seed: int
 
 
 def main() -> None:
+    """Verify the committed split against the dataset and the seed.
+
+    Three checks: every committed final-check ID exists in the dataset; no
+    exemplar shares an injected_fault with an eval example; and the final-check
+    selection regenerates exactly from the committed seed. Prints the split as
+    YAML for comparison against config.yaml.
+
+    Raises:
+        ValueError: If any check fails.
+    """
     parser = argparse.ArgumentParser(description="Verify the committed split in config.yaml")
     parser.add_argument("--config", type=Path, default=Path("config.yaml"))
     args = parser.parse_args()

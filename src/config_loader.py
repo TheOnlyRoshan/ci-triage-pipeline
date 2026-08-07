@@ -1,10 +1,32 @@
+"""Load and validate config.yaml into typed Pydantic models.
+
+Every tunable in the pipeline lives in config.yaml; nothing is hardcoded.
+Validation happens at load time so a bad regex, an out-of-range temperature or 
+an overlapping split fails immediately, rather than midway through a run that 
+has already spent API calls.
+"""
+import re
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, HttpUrl, model_validator, Field
+from pydantic import BaseModel, HttpUrl, model_validator, Field, field_validator
 
 
 def find_project_root(marker: str = "config.yaml") -> Path:
+    """Walk up from this file until a directory containing `marker` is found.
+
+    Lets every other path in the project be written relative to the repo root,
+    so the pipeline runs the same regardless of the current working directory.
+
+    Args:
+        marker: Filename that identifies the project root.
+
+    Returns:
+        The directory containing `marker` — the root itself, not the file.
+
+    Raises:
+        FileNotFoundError: If no parent directory contains `marker`.
+    """
     current = Path(__file__).resolve()
     for parent in current.parents:
         if (parent / marker).exists():
@@ -13,6 +35,16 @@ def find_project_root(marker: str = "config.yaml") -> Path:
 
 
 class GithubConfig(BaseModel):
+    """GitHub repository and API access settings.
+
+    Attributes:
+        token_env_var: Name of the environment variable holding the token —
+            the name only; the value is resolved at runtime by auth.get_secret.
+        owner: Repository owner (user or org).
+        repo: Repository name.
+        job_id: Job to fetch. Hardcoding a single job here suits manual runs;
+            it becomes a per-call parameter once the pipeline iterates.
+    """
     token_env_var: str
     owner: str
     repo: str
@@ -20,12 +52,32 @@ class GithubConfig(BaseModel):
 
 
 class DatasetConfig(BaseModel):
+    """Location and pinned version of the labelled dataset.
+
+    Attributes:
+        repo: URL of the dataset repository.
+        pinned_sha: Commit the dataset is pinned to, so results stay tied to a
+            known dataset state.
+        local_dir: Dataset path relative to the project root.
+    """
     repo: HttpUrl
     pinned_sha: str
     local_dir: Path
 
 
 class SplitConfig(BaseModel):
+    """The committed exemplar / final-check split.
+
+    Only two of the three splits are listed. Dev-eval is derived downstream as
+    the complement, which is why it cannot drift out of sync with the others.
+
+    Attributes:
+        selection_seed: Seed the final-check selection was drawn with, kept so
+            the split can be regenerated and verified.
+        exemplars: Label -> exemplar IDs held out as few-shot candidates.
+        final_check: IDs reserved as a touch-once holdout, never used for
+            tuning.
+    """
     selection_seed: int
     exemplars: dict[str, list[str]]
     final_check: list[str]
@@ -46,20 +98,55 @@ class SplitConfig(BaseModel):
         return self
 
 
-import re
-from pydantic import BaseModel, field_validator
-
-
 class PreprocessConfig(BaseModel):
+    """Log preprocessing patterns, flags and window sizes.
+
+    Attributes:
+        structural_patterns: Always applied — timestamps, ANSI escapes, group
+            markers.
+        strip_env_block: Whether to remove the runner env block.
+        env_block_patterns: Patterns used when strip_env_block is true.
+        strip_pip_output: Whether to remove pip install output.
+        pip_output_patterns: Patterns used when strip_pip_output is true. These
+            enumerate known pip line shapes rather than matching structurally,
+            so some output survives when the flag is on.
+        variant: Human-readable name for the current flag combination, written
+            into every stored label so runs stay distinguishable. Nothing
+            enforces that it matches the flags — set it by hand when toggling.
+        head_lines: Lines kept from the start of a log.
+        tail_lines: Lines kept from the end.
+        truncation_marker: Template for the elision marker; '{n}' is filled
+            with the number of lines dropped.
+    """
     structural_patterns: list[str]
-    strip_env_block: bool = False
-    env_block_patterns: list[str] = []
-    strip_pip_output: bool = False
-    pip_output_patterns: list[str] = []
+    strip_env_block: bool
+    env_block_patterns: list[str]
+    strip_pip_output: bool
+    pip_output_patterns: list[str]
+    variant: str
+    head_lines: int = Field(gt=0)
+    tail_lines: int = Field(gt=0)
+    truncation_marker: str
 
     @field_validator('structural_patterns', 'env_block_patterns', 'pip_output_patterns')
     @classmethod
     def patterns_must_compile(cls, patterns: list[str]) -> list[str]:
+        """Reject any pattern that is not a valid regex.
+
+        A malformed pattern would otherwise raise mid-run, after work has
+        already been done. Note this checks only that a pattern compiles, not
+        that it is anchored correctly — an unanchored pattern is valid regex
+        and will still leave residue on the line.
+
+        Args:
+            patterns: Regex strings from one of the pattern lists.
+
+        Returns:
+            The list unchanged.
+
+        Raises:
+            ValueError: If any pattern fails to compile.
+        """
         for p in patterns:
             try:
                 re.compile(p)
@@ -67,29 +154,70 @@ class PreprocessConfig(BaseModel):
                 raise ValueError(f"Invalid regex {p!r}: {e}") from e
         return patterns
 
-    head_lines: int = Field(gt=0)
-    tail_lines: int = Field(gt=0)
-    truncation_marker: str
 
 class PromptConfig(BaseModel):
+    """Which prompt template to use.
+
+    Attributes:
+        version: Template filename stem, e.g. 'v1' for prompts/v1.txt. Also
+            recorded with every label, so changing it invalidates labels
+            generated under the previous version.
+        prompts_dir: Directory holding templates, relative to project root.
+    """
     version: str
     prompts_dir: str
 
+
 class LlmConfig(BaseModel):
+    """Model and sampling settings for the labeler.
+
+    Attributes:
+        model: API model identifier. Recorded with every label so results from
+            different models are never conflated.
+        max_tokens: Response cap.
+        temperature: Sampling temperature; 0.0 for reproducibility.
+        api_key_env_var: Name of the environment variable holding the API key.
+    """
     model: str
-    max_tokens: int
-    temperature: float
+    max_tokens: int = Field(gt=0)
+    temperature: float = Field(ge=0.0, le=1.0)
     api_key_env_var: str
 
+
+class LabelStoreConfig(BaseModel):
+    """Where predicted labels are persisted.
+
+    Attributes:
+        path: JSONL file path relative to the project root.
+    """
+    path: Path
+
+
 class PipelineConfig(BaseModel):
+    """Root config object — the fully validated contents of config.yaml."""
     dataset: DatasetConfig
     split: SplitConfig
     github: GithubConfig
     preprocessing: PreprocessConfig
     prompt: PromptConfig
     llm: LlmConfig
+    label_store: LabelStoreConfig
+
 
 def load_config(file_path: Path) -> PipelineConfig:
+    """Parse and validate config.yaml.
+
+    Args:
+        file_path: Path to the config file.
+
+    Returns:
+        A validated PipelineConfig.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the file is empty.
+        pydantic.ValidationError: If any field is missing or invalid.
+    """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             raw_data = yaml.safe_load(f)

@@ -31,7 +31,8 @@ preprocessing:
     '^\s*env:\s*$'
   ]
 
-  strip_pip_output: true
+  strip_pip_output: false
+
   pip_output_patterns: [
     '^Successfully installed .*$',
     '^Requirement already satisfied:.*$',
@@ -42,6 +43,7 @@ preprocessing:
   head_lines: 40
   tail_lines: 60
   truncation_marker: '...[TRUNCATED {n} LINES]...'
+  variant: 'strip_none'
 
 dataset:
   repo: https://github.com/TheOnlyRoshan/ci-triage-dataset
@@ -57,6 +59,9 @@ llm:
   max_tokens: 1024
   temperature: 0.0
   api_key_env_var: 'ANTHROPIC_API_KEY'
+
+label_store:
+  path: 'data/labels.jsonl'
 
 split:
   selection_seed: 42
