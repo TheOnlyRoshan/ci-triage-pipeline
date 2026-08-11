@@ -21,7 +21,7 @@ preprocessing:
   # toggleable — content judgements, not structural. See EXPERIMENTS.md E1.
   # Default false: env vars are diagnostic for the `infra` class, and pip
   # patterns enumerate known line shapes rather than matching structurally.
-  strip_env_block: true
+  strip_env_block: false
   env_block_patterns: [
     '^\s*pythonLocation:.*$',
     '^\s*PKG_CONFIG_PATH:.*$',
@@ -32,7 +32,6 @@ preprocessing:
   ]
 
   strip_pip_output: false
-
   pip_output_patterns: [
     '^Successfully installed .*$',
     '^Requirement already satisfied:.*$',

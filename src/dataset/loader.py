@@ -31,7 +31,7 @@ class Example(BaseModel):
             producing a class that silently never matches.
     """
     example_id: str
-    log_text: str      # labeler-visible
+    log_text: str  # labeler-visible
     true_label: Literal['flaky_test', 'genuine_regression', 'infra', 'transient']  # evaluation-only
 
 
@@ -60,8 +60,9 @@ def load_metadata(dataset_dir: Path) -> list[dict]:
                 raise ValueError(
                     f"Label mismatch in {file_path}: found '{data['label']}', folder '{file_path.parent.name}'")
             records.append(data)
-    #print(f"Found {len(records)} json files in {dataset_dir}")
+    # print(f"Found {len(records)} json files in {dataset_dir}")
     return records
+
 
 def load_examples(config, split: str | None = None) -> list[Example]:
     """Load dataset examples, optionally filtered to one split.

@@ -5,7 +5,7 @@ be diffed and referenced from EXPERIMENTS.md. The version string is also part
 of the label store's cache key: editing the prompt invalidates labels produced
 by the previous version instead of silently mixing them.
 """
-from src.config_loader import find_project_root
+from src.config_loader import find_project_root, load_config
 
 
 def load_prompt_template(config) -> str:
