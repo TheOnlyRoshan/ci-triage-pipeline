@@ -42,13 +42,10 @@ class GithubConfig(BaseModel):
             the name only; the value is resolved at runtime by auth.get_secret.
         owner: Repository owner (user or org).
         repo: Repository name.
-        job_id: Job to fetch. Hardcoding a single job here suits manual runs;
-            it becomes a per-call parameter once the pipeline iterates.
     """
     token_env_var: str
     owner: str
     repo: str
-    #job_id: str
 
 
 class DatasetConfig(BaseModel):

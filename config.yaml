@@ -2,7 +2,6 @@ github:
   token_env_var: GITHUB_TOKEN
   owner: 'TheOnlyRoshan'
   repo: 'expense-tracker-api'
-  #job_id: '89767252957'
 
 preprocessing:
   # Patterns are applied per-line via re.sub, which deletes only the matched

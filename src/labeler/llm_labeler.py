@@ -9,14 +9,10 @@ import json
 from typing import Literal
 
 import anthropic
-from dotenv import load_dotenv
+
 from pydantic import BaseModel, Field, ValidationError
 
 from src.auth import get_secret
-from src.config_loader import load_config, find_project_root
-from src.github.job_fetcher import get_failed_step
-from src.github.log_fetcher import fetch_job_log, extract_step_window
-from src.labeler.log_preprocessor import preprocess_log
 from src.labeler.prompt_builder import build_prompt
 
 

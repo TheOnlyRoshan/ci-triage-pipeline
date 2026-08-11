@@ -75,5 +75,5 @@ def main() -> None:
     print(f"Rationale:  {result.rationale}")
 
 if __name__ == "__main__":
-     main()
+    main()
 
