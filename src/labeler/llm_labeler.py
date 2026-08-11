@@ -135,18 +135,3 @@ def label_log(log_text: str, config) -> LabelResult:
     prompt = build_prompt(log_text, config)
     raw = call_llm(prompt, config)
     return parse_label_response(raw)
-
-
-# --- Temporary entry point ---------------------------------------------------
-# Manual end-to-end run against the single job_id in config.yaml. Guarded so
-# importing this module does not fire live API calls. To be replaced by
-# src/main.py, which will take job_id as an argument rather than reading it
-# from config.
-if __name__ == "__main__":
-    load_dotenv()
-    config = load_config(find_project_root() / 'config.yaml')
-    github_token = get_secret(config.github.token_env_var)
-    log = fetch_job_log(config.github.job_id, config.github.owner, config.github.repo, github_token)
-    step = get_failed_step(config.github.job_id, config.github.owner, config.github.repo, github_token)
-    result = preprocess_log(extract_step_window(log, step), config)
-    print('Label:', label_log(result, config))

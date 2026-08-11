@@ -48,7 +48,7 @@ class GithubConfig(BaseModel):
     token_env_var: str
     owner: str
     repo: str
-    job_id: str
+    #job_id: str
 
 
 class DatasetConfig(BaseModel):
