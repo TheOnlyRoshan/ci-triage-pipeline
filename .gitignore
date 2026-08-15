@@ -1,5 +1,5 @@
 .venv/
-data/
+data/dataset/
 __pycache__/
 .idea/
 .env
