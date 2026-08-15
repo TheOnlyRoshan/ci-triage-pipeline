@@ -5,7 +5,7 @@ be diffed and referenced from EXPERIMENTS.md. The version string is also part
 of the label store's cache key: editing the prompt invalidates labels produced
 by the previous version instead of silently mixing them.
 """
-from src.config_loader import find_project_root, load_config
+from src.config_loader import find_project_root
 
 
 def load_prompt_template(config) -> str:
@@ -23,7 +23,7 @@ def load_prompt_template(config) -> str:
         The raw template text, with its {log} placeholder unfilled.
 
     Raises:
-        FileNotFoundError: If the file is absent, naming the resolved path — a
+        FileNotFoundError: If the file is absent, naming the resolved path. A
             typo in prompt.version should fail loudly, not yield an empty
             prompt.
     """
@@ -40,18 +40,18 @@ def load_prompt_template(config) -> str:
 def build_prompt(log_text: str, config) -> str:
     """Substitute a preprocessed log into the prompt template.
 
-    log_text is inserted verbatim. Nothing is stripped or truncated here —
-    log shaping belongs to log_preprocessor, and splitting that responsibility
+    log_text is inserted verbatim. Nothing is stripped or truncated here.
+    Log shaping belongs to log_preprocessor, and splitting that responsibility
     across two modules would make any change in output impossible to attribute.
 
     The template escapes its literal JSON braces as '{{' / '}}' so .format()
     leaves them intact. Braces inside log_text are safe: .format() parses only
     the template, never the substituted values. Do not call .format() again on
-    the result — the log's own braces (e.g. 'bash -e {0}') would then be read
-    as placeholders.
+    the result, because the log's own braces (e.g. 'bash -e {0}') would then
+    be read as placeholders.
 
-    Nothing identifying the example — ground truth, example ID, filename,
-    folder — is included. Only the log text.
+    Nothing identifying the example is included: not ground truth, example ID,
+    filename, or folder. Only the log text.
 
     Args:
         log_text: Preprocessed log, from preprocess_log.

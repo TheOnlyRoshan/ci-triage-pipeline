@@ -9,16 +9,16 @@ preprocessing:
   # substring. Every pattern must therefore be anchored '^...*$' so the whole
   # line collapses to empty; partial matches leave orphaned residue (e.g.
   # '^\s*pythonLocation:' leaves ' /opt/hostedtoolcache/...' behind).
-  # Blank-line dropping happens AFTER all substitutions — do not reorder.
+  # Blank-line dropping happens AFTER all substitutions. Do not reorder.
 
-  # always applied — structurally zero-signal
+  # always applied, structurally zero-signal
   structural_patterns: [
     '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s',
     '\x1b?\[[0-9;]*m',
     '^##\[(group|endgroup)\].*$'
   ]
 
-  # toggleable — content judgements, not structural. See EXPERIMENTS.md E1.
+  # toggleable content judgements, not structural. See EXPERIMENTS.md E1.
   # Default false: env vars are diagnostic for the `infra` class, and pip
   # patterns enumerate known line shapes rather than matching structurally.
   strip_env_block: false

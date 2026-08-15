@@ -23,7 +23,8 @@ def find_project_root(marker: str = "config.yaml") -> Path:
         marker: Filename that identifies the project root.
 
     Returns:
-        The directory containing `marker` — the root itself, not the file.
+        The directory containing `marker`, which is the root itself and not
+        the file.
 
     Raises:
         FileNotFoundError: If no parent directory contains `marker`.
@@ -39,8 +40,8 @@ class GithubConfig(BaseModel):
     """GitHub repository and API access settings.
 
     Attributes:
-        token_env_var: Name of the environment variable holding the token —
-            the name only; the value is resolved at runtime by auth.get_secret.
+        token_env_var: Name of the environment variable holding the token.
+            The name only; the value is resolved at runtime by auth.get_secret.
         owner: Repository owner (user or org).
         repo: Repository name.
     """
@@ -100,8 +101,8 @@ class PreprocessConfig(BaseModel):
     """Log preprocessing patterns, flags and window sizes.
 
     Attributes:
-        structural_patterns: Always applied — timestamps, ANSI escapes, group
-            markers.
+        structural_patterns: Always applied. Timestamps, ANSI escapes, and
+            group markers.
         strip_env_block: Whether to remove the runner env block.
         env_block_patterns: Patterns used when strip_env_block is true.
         strip_pip_output: Whether to remove pip install output.
@@ -110,7 +111,8 @@ class PreprocessConfig(BaseModel):
             so some output survives when the flag is on.
         variant: Human-readable name for the current flag combination, written
             into every stored label so runs stay distinguishable. Nothing
-            enforces that it matches the flags — set it by hand when toggling.
+            enforces that it matches the flags, so set it by hand when
+            toggling.
         head_lines: Lines kept from the start of a log.
         tail_lines: Lines kept from the end.
         truncation_marker: Template for the elision marker; '{n}' is filled
@@ -133,7 +135,7 @@ class PreprocessConfig(BaseModel):
 
         A malformed pattern would otherwise raise mid-run, after work has
         already been done. Note this checks only that a pattern compiles, not
-        that it is anchored correctly — an unanchored pattern is valid regex
+        that it is anchored correctly. An unanchored pattern is valid regex
         and will still leave residue on the line.
 
         Args:
@@ -192,7 +194,7 @@ class LabelStoreConfig(BaseModel):
 
 
 class PipelineConfig(BaseModel):
-    """Root config object — the fully validated contents of config.yaml."""
+    """Root config object: the fully validated contents of config.yaml."""
     categories: list[str]
     dataset: DatasetConfig
     split: SplitConfig
@@ -208,9 +210,9 @@ class PipelineConfig(BaseModel):
 
         The Literal in src.categories cannot read config, so the two are
         independent declarations of the same set. Comparing them at load time
-        turns a silent mismatch — which would otherwise surface as a Pydantic
-        validation failure deep inside a labelling run, after API calls have
-        been paid for — into an immediate startup error.
+        turns a silent mismatch into an immediate startup error. Without it,
+        the mismatch would surface as a Pydantic validation failure deep
+        inside a labelling run, after API calls have been paid for.
 
         Returns:
             The validated config.

@@ -1,6 +1,6 @@
 """Compute classification metrics from predicted and true labels.
 
-Pure functions over label lists — no config, no I/O, no API calls, so every
+Pure functions over label lists. No config, no I/O, and no API calls, so every
 function here is testable against hand-written inputs.
 
 Metrics are reported per class rather than as a single accuracy figure. The
@@ -65,8 +65,8 @@ def per_class_metrics(
     Returns:
         Per category: precision, recall, f1 (floats) and support (int, the
         number of examples whose true label is this category). Precision and
-        recall are 0.0 when their denominator is zero — the model never
-        predicted the class, or the class has no examples.
+        recall are 0.0 when their denominator is zero, meaning the model never
+        predicted the class or the class has no examples.
     """
     metrics: dict[str, dict[str, float | int]] = {}
 

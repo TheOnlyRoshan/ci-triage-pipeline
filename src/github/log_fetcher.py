@@ -1,6 +1,6 @@
 """Fetch a job's log from GitHub Actions and slice it to one step.
 
-The /logs endpoint returns the whole job's output — every step concatenated.
+The /logs endpoint returns the whole job's output, every step concatenated.
 Isolating the failed step is done by timestamp range, not by '##[group]'
 markers: a step's 'name' in job metadata differs from its log marker text
 ("Run tests" vs "##[group]Run pytest"), and one step can contain several
@@ -18,7 +18,7 @@ def fetch_job_log(job_id: str, owner: str, repo: str, token: str) -> str:
         job_id: GitHub Actions job ID.
         owner: Repository owner (user or org).
         repo: Repository name.
-        token: GitHub token. Required even for public repos — unlike job
+        token: GitHub token. Required even for public repos. Unlike job
             metadata, the log endpoint always demands authentication.
 
     Returns:

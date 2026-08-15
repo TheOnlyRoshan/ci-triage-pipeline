@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 
 from src.config_loader import find_project_root
-from src.dataset.loader import load_examples
 from src.labeler.llm_labeler import LabelResult, label_log
 
 
@@ -108,7 +107,7 @@ def get_or_create(example_id: str, log_text: str, config) -> LabelResult:
     so the check-miss-call-save sequence lives in exactly one place and cannot
     be half-applied by a caller who forgets the lookup.
 
-    Nothing is stored when labelling fails — a parse error is not an answer,
+    Nothing is stored when labelling fails. A parse error is not an answer,
     and caching it would make the failure permanent until the store is edited
     by hand.
 

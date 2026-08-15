@@ -31,7 +31,7 @@ def get_failed_step(job_id: str, owner: str, repo: str, token: str) -> dict:
 
     Raises:
         ValueError: If the job has no failed step, or more than one. Multiple
-            failures are ambiguous — which step caused the failure is a
+            failures are ambiguous, since which step caused the failure is a
             judgement the caller has to make, so this refuses to guess.
         requests.HTTPError: On a non-2xx response.
     """

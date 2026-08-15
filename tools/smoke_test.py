@@ -1,11 +1,11 @@
 """Manual smoke test for the dataset loader and label store.
 
 Loads the dev-eval split, labels the first example twice, and reports whether
-the second call was served from the store. Not a unit test — it makes a live
-API call on the first run.
+the second call was served from the store. Not a unit test, since it makes a
+live API call on the first run.
 
 Run from the project root:
-    python tools/smoke_test.py
+    python -m tools.smoke_test
 """
 import time
 

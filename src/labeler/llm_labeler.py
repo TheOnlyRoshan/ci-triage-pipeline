@@ -28,7 +28,7 @@ class LabelResult(BaseModel):
         label: One of the four categories.
         confidence: Model's self-reported confidence, 0.0 to 1.0.
         rationale: Short justification citing evidence from the log. Kept for
-            debugging — when a class is systematically misread, the rationales
+            debugging. When a class is systematically misread, the rationales
             are what explain why.
     """
     label: Category
@@ -39,7 +39,7 @@ class LabelResult(BaseModel):
 def call_llm(prompt: str, config) -> str:
     """Send one prompt to the Anthropic Messages API and return the raw text.
 
-    Deliberately does no parsing — the fetch/parse split mirrors log_fetcher,
+    Deliberately does no parsing. The fetch/parse split mirrors log_fetcher,
     so parse_label_response can be tested against fixture strings with no
     network access. No retry logic either: an API error should surface rather
     than be silently absorbed.
@@ -69,7 +69,7 @@ def parse_label_response(raw_response: str) -> LabelResult:
     Slices from the first '{' to the last '}' before parsing. That single move
     absorbs both markdown fences and any preamble sentence, since a ```json
     fence sits before the first brace and its closing fence after the last.
-    Nested objects are unaffected — they are between those bounds by
+    Nested objects are unaffected, since they are between those bounds by
     definition.
 
     No retry and no fallback label. Re-asking until the response parses would
@@ -87,9 +87,9 @@ def parse_label_response(raw_response: str) -> LabelResult:
     Raises:
         ValueError: If no JSON object is present, if the slice is not valid
             JSON, or if the fields fail validation. The raw response is
-            embedded in the message — knowing the model rambled, truncated, or
-            invented a category is the difference between a one-look fix and a
-            blind one.
+            embedded in the message. Knowing whether the model rambled,
+            truncated, or invented a category is the difference between a
+            one-look fix and a blind one.
     """
     text = raw_response.strip()
 

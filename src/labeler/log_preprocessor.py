@@ -12,7 +12,7 @@ def strip_noise_lines(raw_text: str, config) -> str:
     """Remove log lines and line fragments that carry no classification signal.
 
     Structural patterns (timestamps, ANSI escapes, '##[group]' markers) always
-    apply — they are provably signal-free. Env-block and pip-output patterns
+    apply, since they are provably signal-free. Env-block and pip-output patterns
     are content judgements and stay behind config flags, because they are only
     safe for some failure classes: the runner's pythonLocation and
     LD_LIBRARY_PATH are exactly the evidence that distinguishes an 'infra'
@@ -56,7 +56,7 @@ def extract_relevant_window(clean_text: str, config) -> str:
     failure ends in an assertion and summary (signal at the tail).
 
     Logs that already fit are returned untouched. That guard is not just an
-    optimisation — without it, a log shorter than head + tail would emit
+    optimisation. Without it, a log shorter than head + tail would emit
     lines[:head] plus lines[-tail:], and negative-index clamping would repeat
     content silently.
 
@@ -89,8 +89,8 @@ def preprocess_log(raw_text: str, config) -> str:
     """Run the full preprocessing chain: strip noise, then window.
 
     This is the module's public entry point. Callers use it instead of the two
-    stages directly so the order is owned in one place — and so a future third
-    stage reaches every caller at once, rather than only the ones that
+    stages directly so the order is owned in one place, and so a future third
+    stage reaches every caller at once rather than only the ones that
     remembered to add it. Divergence here between eval and production code
     would be train/serve skew.
 
