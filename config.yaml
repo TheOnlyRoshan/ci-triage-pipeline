@@ -1,3 +1,4 @@
+categories: [ flaky_test, genuine_regression, infra, transient ]
 github:
   token_env_var: GITHUB_TOKEN
   owner: 'TheOnlyRoshan'

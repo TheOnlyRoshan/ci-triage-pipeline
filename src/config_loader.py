@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, HttpUrl, model_validator, Field, field_validator
+from src.categories import CATEGORIES
 
 
 def find_project_root(marker: str = "config.yaml") -> Path:
@@ -192,6 +193,7 @@ class LabelStoreConfig(BaseModel):
 
 class PipelineConfig(BaseModel):
     """Root config object — the fully validated contents of config.yaml."""
+    categories: list[str]
     dataset: DatasetConfig
     split: SplitConfig
     github: GithubConfig
@@ -199,6 +201,28 @@ class PipelineConfig(BaseModel):
     prompt: PromptConfig
     llm: LlmConfig
     label_store: LabelStoreConfig
+
+    @model_validator(mode='after')
+    def categories_match_code(self) -> 'PipelineConfig':
+        """Reject a config whose categories disagree with src.categories.
+
+        The Literal in src.categories cannot read config, so the two are
+        independent declarations of the same set. Comparing them at load time
+        turns a silent mismatch — which would otherwise surface as a Pydantic
+        validation failure deep inside a labelling run, after API calls have
+        been paid for — into an immediate startup error.
+
+        Returns:
+            The validated config.
+
+        Raises:
+            ValueError: If the two sets differ.
+        """
+        if set(self.categories) != set(CATEGORIES):
+            raise ValueError(
+                f"config categories {sorted(self.categories)} do not match "
+                f"src.categories {sorted(CATEGORIES)}")
+        return self
 
 
 def load_config(file_path: Path) -> PipelineConfig:

@@ -7,11 +7,11 @@ Example deliberately does not hold them, so they cannot reach a prompt.
 """
 import json
 from pathlib import Path
-from typing import Literal
 
 from pydantic import BaseModel
 
 from src.config_loader import find_project_root
+from src.categories import Category
 
 
 class Example(BaseModel):
@@ -32,7 +32,7 @@ class Example(BaseModel):
     """
     example_id: str
     log_text: str  # labeler-visible
-    true_label: Literal['flaky_test', 'genuine_regression', 'infra', 'transient']  # evaluation-only
+    true_label: Category
 
 
 def load_metadata(dataset_dir: Path) -> list[dict]:

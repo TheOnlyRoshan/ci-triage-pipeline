@@ -6,13 +6,13 @@ reproducible and so the model can be varied for the three-model comparison
 (EXPERIMENTS.md E2).
 """
 import json
-from typing import Literal
 
 import anthropic
 
 from pydantic import BaseModel, Field, ValidationError
 
 from src.auth import get_secret
+from src.categories import Category
 from src.labeler.prompt_builder import build_prompt
 
 
@@ -31,7 +31,7 @@ class LabelResult(BaseModel):
             debugging — when a class is systematically misread, the rationales
             are what explain why.
     """
-    label: Literal['flaky_test', 'genuine_regression', 'infra', 'transient']
+    label: Category
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
 
