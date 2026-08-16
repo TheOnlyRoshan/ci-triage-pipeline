@@ -21,7 +21,7 @@ preprocessing:
   # toggleable content judgements, not structural. See EXPERIMENTS.md E1.
   # Default false: env vars are diagnostic for the `infra` class, and pip
   # patterns enumerate known line shapes rather than matching structurally.
-  strip_env_block: false
+  strip_env_block: true
   env_block_patterns: [
     '^\s*pythonLocation:.*$',
     '^\s*PKG_CONFIG_PATH:.*$',
@@ -31,7 +31,7 @@ preprocessing:
     '^\s*env:\s*$'
   ]
 
-  strip_pip_output: false
+  strip_pip_output: true
   pip_output_patterns: [
     '^Successfully installed .*$',
     '^Requirement already satisfied:.*$',
@@ -42,7 +42,7 @@ preprocessing:
   head_lines: 40
   tail_lines: 60
   truncation_marker: '...[TRUNCATED {n} LINES]...'
-  variant: 'strip_none'
+  variant: 'strip_env_pip'
 
 dataset:
   repo: https://github.com/TheOnlyRoshan/ci-triage-dataset
@@ -61,6 +61,9 @@ llm:
 
 label_store:
   path: 'data/labels.jsonl'
+
+evaluation:
+  low_support_threshold: 5
 
 split:
   selection_seed: 42

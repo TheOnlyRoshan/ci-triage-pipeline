@@ -114,35 +114,123 @@ made to the prompt or preprocessing on the strength of it.
    annotation the model happens to read.
 2. Prompt v2 targeting the genuine_regression fallback, measured against E0.
 
-## E1: Preprocessing ablation (not started)
+## E1: Preprocessing ablation
 
 **Question:** Does removing the runner env block and pip install output change
 classification quality?
 
-**Hypothesis:** No gain on flaky_test, transient, or genuine_regression.
-Possible loss on infra, where environment variables such as `pythonLocation`
-and `LD_LIBRARY_PATH` are the diagnostic evidence.
+**Hypothesis (written before the run):** No gain on flaky_test, transient, or
+genuine_regression. Possible loss on infra, where environment variables such as
+`pythonLocation` and `LD_LIBRARY_PATH` are the diagnostic evidence.
 
-**Setup:** `strip_env_block` and `strip_pip_output` each true or false, giving
-4 variants. Model, prompt version, and window sizes fixed at E0 values.
-Structural strips (timestamps, ANSI escapes, group markers) stay on throughout.
+**Setup:** `strip_env_block` and `strip_pip_output` each true or false, giving 4
+variants. Model (claude-sonnet-4-6), prompt version (v1), and window sizes fixed
+at E0 values. Structural strips (timestamps, ANSI escapes, group markers) stay
+on throughout. 81 additional API calls across the three new variants.
+
+**Results**
 
 | Variant | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy |
 |:-|:-|:-|:-|:-|:-|
 | strip_none (E0) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
-| strip_env | | | | | |
-| strip_pip | | | | | |
-| strip_env_pip | | | | | |
+| strip_env | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
+| strip_pip | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
+| strip_env_pip | 1.00 / 0.86 | 0.77 / 1.00 | 1.00 / 1.00 | 1.00 / 0.71 | 0.89 |
 
-**Decision:** (pending)
+**Finding: the four variants differ by exactly one example.**
 
-**Caveat to record with the result:** `pip_output_patterns` enumerates known
-pip line shapes rather than matching structurally, so with the flag on, some
-pip output still survives. Any measured effect is a lower bound on what full
-pip stripping would do.
+Diffing the confusion matrices cell by cell, `strip_env` and `strip_pip` are
+identical to `strip_none` in every position. `strip_env_pip` differs in two
+cells, which is one example (`infra_004`) moving from genuine_regression to
+infra.
 
-**Constraint:** whichever variant is chosen must be identical in evaluation and
-in production. A flag that differs between the two is train/serve skew.
+That single example accounts for the entire difference between the reported
+accuracies. 23 of 27 correct becomes 24 of 27. It also produces the
+genuine_regression precision change, since predictions in that column drop from
+14 to 13, so 10/14 becomes 10/13.
+
+**The one example that moved was not a borderline case.**
+
+The obvious explanation was that `infra_004` sat near a decision boundary and a
+shorter prompt tipped it. The stored confidences rule that out:
+
+| Variant | Label | Confidence |
+|:-|:-|:-|
+| strip_none | genuine_regression | 0.85 |
+| strip_env | genuine_regression | 0.85 |
+| strip_pip | genuine_regression | 0.85 |
+| strip_env_pip | infra | 0.92 |
+
+Three confident wrong answers, then a more confident right one. Truncation was
+also ruled out: the log is 28 lines after stripping against a window threshold
+of 100, so no variant truncated anything.
+
+**Reading the rationales explains it, and the cause is the prompt.**
+
+All four runs diagnosed the same root cause: `requirements.txt` pins
+`starlette==0.27.0` while `fastapi 0.115.0` requires `>=0.37.2`. The model never
+disagreed about what happened. It disagreed about which category that belongs
+to.
+
+Three reasoned that a version conflict committed to the repository is
+deterministic and reproduces on every run, which is genuine_regression. One
+reasoned that the failure occurred during dependency installation before any
+tests ran, which is infra.
+
+Both readings follow from the v1 prompt, because its category definitions
+overlap for this case. `infra` lists dependency resolution failure explicitly,
+and `genuine_regression` is defined by determinism, and a bad version pin
+satisfies both.
+
+**The deeper problem: v1 used determinism as the discriminator, and it does not
+discriminate.**
+
+`data/dataset/LABELING_RUBRIC.md` states that infra is also deterministic, and
+gives the actual discriminator in one sentence: no application code is involved.
+The rubric's decision procedure asks whether the application is at fault first,
+and only then asks whether a re-run would pass.
+
+The v1 prompt inverted this. Its only determinism rule reads "if a failure is
+deterministic and reproducible, it is genuine_regression", which points the
+opposite way from the rubric for any deterministic non-application failure.
+
+The rubric header states that its class definitions are reused verbatim in the
+classifier prompt. They were not. That drift is the bug.
+
+**Corrected conclusion on the interaction.**
+
+The earlier reading, that neither flag mattered alone but both together produced
+a real interaction, does not hold. Preprocessing did not fix anything. The
+ambiguity is present in all four variants, and one example happened to resolve
+differently under a shorter prompt. The fix belongs in the prompt, not in
+preprocessing, and is tracked as prompt v2.
+
+**Multiple comparisons caveat.**
+
+Four variants were evaluated on the same 27 examples and the best was selected.
+With n this small, selecting the maximum across several variants tends to select
+noise rather than signal. This is the same reason the final_check split exists
+and is not being used for tuning.
+
+**Decision: adopt `strip_env_pip`, for the token cost, not the accuracy.**
+
+The defensible claim is that no variant produced a difference distinguishable
+from noise, so the choice comes down to cost. Stripping removes roughly seven
+lines of env block plus the pip output line from a 28 line log, and accuracy did
+not degrade, which is the condition the flag was gated on.
+
+The claim being explicitly avoided: that stripping improved accuracy from 0.85
+to 0.89. That is one example, it moved for a reason unrelated to preprocessing,
+and reporting it as an improvement would be the kind of overclaim the support
+counts exist to prevent.
+
+**Caveat carried forward:** `pip_output_patterns` enumerates known pip line
+shapes rather than matching structurally, so with the flag on, some pip output
+still survives. Any measured effect is a lower bound on what full pip stripping
+would do.
+
+**Constraint:** `strip_env_pip` is now the production setting as well as the
+evaluation setting. A flag that differs between the two is train/serve skew.
 
 ## E2: Model comparison (not started)
 

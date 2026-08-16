@@ -193,6 +193,18 @@ class LabelStoreConfig(BaseModel):
     path: Path
 
 
+class EvaluationConfig(BaseModel):
+    """Settings for the evaluation report.
+
+    Attributes:
+        low_support_threshold: Classes with fewer examples than this get a
+            warning printed with the report. Set in config rather than in code
+            so the point at which a metric stops being trustworthy is a stated
+            assumption rather than a constant buried in a formatter.
+    """
+    low_support_threshold: int = Field(gt=0)
+
+
 class PipelineConfig(BaseModel):
     """Root config object: the fully validated contents of config.yaml."""
     categories: list[str]
@@ -203,6 +215,7 @@ class PipelineConfig(BaseModel):
     prompt: PromptConfig
     llm: LlmConfig
     label_store: LabelStoreConfig
+    evaluation: EvaluationConfig
 
     @model_validator(mode='after')
     def categories_match_code(self) -> 'PipelineConfig':

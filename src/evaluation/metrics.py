@@ -9,6 +9,7 @@ aggregate number is dominated by the largest class and hides failure on the
 smallest.
 """
 
+
 def build_confusion_matrix(
         true_labels: list[str],
         predicted_labels: list[str],
@@ -97,10 +98,12 @@ def per_class_metrics(
 
     return metrics
 
+
 def format_report(
         metrics: dict[str, dict[str, float | int]],
         matrix: dict[str, dict[str, int]],
         categories: list[str],
+        low_support_threshold: int,
 ) -> str:
     """Render metrics and confusion matrix as an aligned text report.
 
@@ -115,10 +118,11 @@ def format_report(
         metrics: Output of per_class_metrics.
         matrix: Output of build_confusion_matrix.
         categories: All valid categories, fixing display order.
+        low_support_threshold: Below this, a warning is printed.
 
     Returns:
         Multi-line report: per-class table, confusion matrix, baselines, and
-        a low-support warning when any class has fewer than five examples.
+        a low-support warning when any class has fewer than low_support_threshold examples.
     """
     total = sum(sum(row.values()) for row in matrix.values())
     correct = sum(matrix[c][c] for c in categories)
@@ -172,12 +176,16 @@ def format_report(
     lines.append(f"{'Random (' + str(len(categories)) + ' classes)':<{name_width}}{random_baseline:>10.2f}")
     lines.append(f"{'Majority class':<{name_width}}{majority_baseline:>10.2f}   ({majority_class})")
 
-    low_support = [c for c in categories if metrics[c]['support'] < 5]
+    low_support = [c for c in categories
+                   if 0 < metrics[c]['support'] < low_support_threshold]
     if low_support:
         lines.append("")
-        lines.append(
-            f"NOTE: low support for {', '.join(low_support)}. With fewer than five "
-            f"examples, one misclassification moves recall by 20+ points."
-        )
+        lines.append("NOTE: low support.")
+        for category in low_support:
+            support = metrics[category]['support']
+            lines.append(
+                f"  {category} has support {support}, so one misclassification "
+                f"moves its recall by {100 / support:.0f} points."
+            )
 
     return "\n".join(lines)

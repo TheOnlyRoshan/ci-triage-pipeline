@@ -1,0 +1,27 @@
+CLASSIFICATION REPORT
+=====================
+
+Class                Precision    Recall        F1   Support
+------------------------------------------------------------
+flaky_test                1.00      0.86      0.92         7
+genuine_regression        0.77      1.00      0.87        10
+infra                     1.00      1.00      1.00         3
+transient                 1.00      0.71      0.83         7
+------------------------------------------------------------
+Overall accuracy          0.89                            27
+
+CONFUSION MATRIX
+(rows = true label, columns = predicted)
+
+true \ pred          flaky_tes genuine_r     infra transient
+------------------------------------------------------------
+flaky_test                   6         1         0         0
+genuine_regression           0        10         0         0
+infra                        0         0         3         0
+transient                    0         2         0         5
+
+BASELINES
+Random (4 classes)        0.25
+Majority class            0.37   (genuine_regression)
+
+NOTE: low support for infra. With fewer than five examples, one misclassification moves recall by 20+ points.
