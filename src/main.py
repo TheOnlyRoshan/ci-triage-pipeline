@@ -34,6 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no_store", action="store_true", help="Do not store the label.")
     return parser.parse_args()
 
+
 def run(job_id: str, example_id: str | None, use_store: bool, config) -> LabelResult:
     """Fetch, preprocess and classify a single CI job.
 
@@ -64,6 +65,7 @@ def run(job_id: str, example_id: str | None, use_store: bool, config) -> LabelRe
     else:
         return label_log(preprocessed, config)
 
+
 def main() -> None:
     """CLI entry point: parse arguments, run the pipeline, print the result."""
     load_dotenv()
@@ -74,6 +76,6 @@ def main() -> None:
     print(f"Confidence: {result.confidence}")
     print(f"Rationale:  {result.rationale}")
 
+
 if __name__ == "__main__":
     main()
-

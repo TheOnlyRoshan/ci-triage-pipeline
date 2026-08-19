@@ -32,14 +32,14 @@ since both are non deterministic failures.
 
 **Setup**
 
-| Setting | Value |
-|:-|:-|
-| Split | dev_eval (27 examples) |
-| Model | claude-sonnet-4-6 |
-| Prompt version | v1 (zero shot) |
-| Preprocessing variant | strip_none |
-| Temperature | 0.0 |
-| Window | head 40, tail 60 |
+| Setting               | Value                  |
+|:----------------------|:-----------------------|
+| Split                 | dev_eval (27 examples) |
+| Model                 | claude-sonnet-4-6      |
+| Prompt version        | v1 (zero shot)         |
+| Preprocessing variant | strip_none             |
+| Temperature           | 0.0                    |
+| Window                | head 40, tail 60       |
 
 Reproduce with `python -m tools.run_eval` from the project root.
 
@@ -130,12 +130,12 @@ on throughout. 81 additional API calls across the three new variants.
 
 **Results**
 
-| Variant | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy |
-|:-|:-|:-|:-|:-|:-|
-| strip_none (E0) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
-| strip_env | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
-| strip_pip | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
-| strip_env_pip | 1.00 / 0.86 | 0.77 / 1.00 | 1.00 / 1.00 | 1.00 / 0.71 | 0.89 |
+| Variant         | flaky P/R   | genuine P/R | infra P/R   | transient P/R | Accuracy |
+|:----------------|:------------|:------------|:------------|:--------------|:---------|
+| strip_none (E0) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
+| strip_env       | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
+| strip_pip       | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
+| strip_env_pip   | 1.00 / 0.86 | 0.77 / 1.00 | 1.00 / 1.00 | 1.00 / 0.71   | 0.89     |
 
 **Finding: the four variants differ by exactly one example.**
 
@@ -154,12 +154,12 @@ genuine_regression precision change, since predictions in that column drop from
 The obvious explanation was that `infra_004` sat near a decision boundary and a
 shorter prompt tipped it. The stored confidences rule that out:
 
-| Variant | Label | Confidence |
-|:-|:-|:-|
-| strip_none | genuine_regression | 0.85 |
-| strip_env | genuine_regression | 0.85 |
-| strip_pip | genuine_regression | 0.85 |
-| strip_env_pip | infra | 0.92 |
+| Variant       | Label              | Confidence |
+|:--------------|:-------------------|:-----------|
+| strip_none    | genuine_regression | 0.85       |
+| strip_env     | genuine_regression | 0.85       |
+| strip_pip     | genuine_regression | 0.85       |
+| strip_env_pip | infra              | 0.92       |
 
 Three confident wrong answers, then a more confident right one. Truncation was
 also ruled out: the log is 28 lines after stripping against a window threshold
@@ -239,11 +239,11 @@ evaluation setting. A flag that differs between the two is train/serve skew.
 **Setup:** Haiku, Sonnet, and Opus. Prompt version and preprocessing fixed at
 whatever E1 settles on. Full dev_eval run for each.
 
-| Model | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy | Cost |
-|:-|:-|:-|:-|:-|:-|:-|
-| claude-sonnet-4-6 | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 | |
-| Haiku | | | | | | |
-| Opus | | | | | | |
+| Model             | flaky P/R   | genuine P/R | infra P/R   | transient P/R | Accuracy | Cost |
+|:------------------|:------------|:------------|:------------|:--------------|:---------|:-----|
+| claude-sonnet-4-6 | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |      |
+| Haiku             |             |             |             |               |          |      |
+| Opus              |             |             |             |               |          |      |
 
 **Decision:** (pending)
 
@@ -283,10 +283,10 @@ docstring as their primary evidence, both at 0.99 confidence.
 stripped from the log before prompting. The difference in per class recall is
 the inflation.
 
-| Variant | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy |
-|:-|:-|:-|:-|:-|:-|
-| E0 (docstrings present) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
-| Docstrings stripped | | | | | |
+| Variant                 | flaky P/R   | genuine P/R | infra P/R   | transient P/R | Accuracy |
+|:------------------------|:------------|:------------|:------------|:--------------|:---------|
+| E0 (docstrings present) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
+| Docstrings stripped     |             |             |             |               |          |
 
 **Expected outcome:** a drop, concentrated in flaky_test, since that is where
 the docstrings are most explicit.

@@ -25,6 +25,7 @@ def normalize(s: str) -> str:
         """
     return " ".join(s.lower().split())
 
+
 def propose_exemplar_candidates(examples: list[dict]) -> dict[str, list[dict]]:
     """Rank exemplar candidates per class for human curation.
 

@@ -10,8 +10,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from src.config_loader import find_project_root
 from src.categories import Category
+from src.config_loader import find_project_root
 
 
 class Example(BaseModel):

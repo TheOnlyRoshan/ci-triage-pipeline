@@ -8,7 +8,6 @@ reproducible and so the model can be varied for the three-model comparison
 import json
 
 import anthropic
-
 from pydantic import BaseModel, Field, ValidationError
 
 from src.auth import get_secret

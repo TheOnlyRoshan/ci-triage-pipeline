@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, HttpUrl, model_validator, Field, field_validator
+
 from src.categories import CATEGORIES
 
 

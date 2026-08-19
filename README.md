@@ -11,12 +11,12 @@ red three times a day.
 
 ## Categories
 
-| Category | Meaning |
-|:-|:-|
-| `flaky_test` | Non deterministic failure originating inside the repository: randomness, timing assumptions, test order dependence |
-| `genuine_regression` | A real defect in the code under test, deterministic and reproducible |
-| `infra` | The CI environment failed to build or configure, so tests never ran |
-| `transient` | The environment built, but an external dependency failed during execution |
+| Category             | Meaning                                                                                                            |
+|:---------------------|:-------------------------------------------------------------------------------------------------------------------|
+| `flaky_test`         | Non deterministic failure originating inside the repository: randomness, timing assumptions, test order dependence |
+| `genuine_regression` | A real defect in the code under test, deterministic and reproducible                                               |
+| `infra`              | The CI environment failed to build or configure, so tests never ran                                                |
+| `transient`          | The environment built, but an external dependency failed during execution                                          |
 
 The two boundaries that matter are `flaky_test` against `transient` (where does
 the non determinism originate, inside the repo or outside it) and `transient`
@@ -163,16 +163,16 @@ Every tunable lives in `config.yaml` and is validated into typed Pydantic models
 at load time, so a bad regex, an out of range temperature, or an overlapping
 split fails at startup rather than midway through a paid run.
 
-| Section | Controls |
-|:-|:-|
-| `categories` | The four labels, cross checked against `src/categories.py` |
-| `github` | Repository and token environment variable name |
-| `preprocessing` | Noise patterns, ablation flags, window sizes |
-| `prompt` | Template version and directory |
-| `llm` | Model, temperature, max tokens |
-| `label_store` | Cache file path |
-| `split` | Exemplar and final check IDs, and the seed they were drawn with |
-| `dataset` | Dataset repository and pinned SHA |
+| Section         | Controls                                                        |
+|:----------------|:----------------------------------------------------------------|
+| `categories`    | The four labels, cross checked against `src/categories.py`      |
+| `github`        | Repository and token environment variable name                  |
+| `preprocessing` | Noise patterns, ablation flags, window sizes                    |
+| `prompt`        | Template version and directory                                  |
+| `llm`           | Model, temperature, max tokens                                  |
+| `label_store`   | Cache file path                                                 |
+| `split`         | Exemplar and final check IDs, and the seed they were drawn with |
+| `dataset`       | Dataset repository and pinned SHA                               |
 
 Secrets are never in config. Config holds the environment variable *name*, and
 `auth.get_secret()` resolves it at runtime.
@@ -184,11 +184,11 @@ Secrets are never in config. Config holds the environment variable *name*, and
 by SHA. Real CI logs captured through fault injection, plus synthetic logs where
 a failure mode was impractical to reproduce.
 
-| Split | Size | Purpose |
-|:-|:-|:-|
-| `exemplars` | 12 | Reserved as few shot candidates, never evaluated on |
-| `dev_eval` | 27 | Every number reported so far |
-| `final_check` | 10 | Untouched holdout |
+| Split         | Size | Purpose                                             |
+|:--------------|:-----|:----------------------------------------------------|
+| `exemplars`   | 12   | Reserved as few shot candidates, never evaluated on |
+| `dev_eval`    | 27   | Every number reported so far                        |
+| `final_check` | 10   | Untouched holdout                                   |
 
 `dev_eval` is derived as the complement of the other two rather than listed in
 config, so it cannot drift out of sync with them.
