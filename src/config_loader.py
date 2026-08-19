@@ -181,12 +181,13 @@ class LlmConfig(BaseModel):
         model: API model identifier. Recorded with every label so results from
             different models are never conflated.
         max_tokens: Response cap.
-        temperature: Sampling temperature; 0.0 for reproducibility.
+        temperature: Sampling temperature; 0.0 for reproducibility. Omitted from the request when null,
+            which is required for models that reject sampling parameters
         api_key_env_var: Name of the environment variable holding the API key.
     """
     model: str
     max_tokens: int = Field(gt=0)
-    temperature: float = Field(ge=0.0, le=1.0)
+    temperature: float | None = Field(ge=0.0, le=1.0)
     api_key_env_var: str
 
 

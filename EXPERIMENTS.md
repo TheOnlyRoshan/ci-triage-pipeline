@@ -238,25 +238,124 @@ would do.
 **Constraint:** `strip_env_pip` is now the production setting as well as the
 evaluation setting. A flag that differs between the two is train/serve skew.
 
-## E2: Model comparison (not started)
+## E2: Model comparison
 
 **Question:** Which model gives the best accuracy for the cost, as a labeler?
 
-**Setup:** Haiku, Sonnet, and Opus. Prompt version and preprocessing fixed at
-whatever E1 settles on. Full dev_eval run for each.
+**Hypothesis (written before the run):** With Sonnet already at 24 of 25, no
+model can meaningfully beat it, so the useful question is whether Haiku matches
+it at a fraction of the price.
 
-| Model | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy | Cost |
-|:-|:-|:-|:-|:-|:-|:-|
-| claude-sonnet-4-6 | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 | |
-| Haiku | | | | | | |
-| Opus | | | | | | |
+**Setup:** dev_eval (25), prompt v2, strip_env_pip. Three models across a 5x
+price range. Costs below are estimates from roughly 1,400 input and 100 output
+tokens per example, not measured billing.
 
-**Decision:** (pending)
+**Results**
 
-**Note on cost:** the instruction block is identical across all 27 calls, so
-prompt caching would cut input cost substantially at larger scale. At n = 27
-the saving is pennies and is not worth implementing, but it is the obvious
-lever if this ran per commit across many repositories.
+| Model | Accuracy | Miss | Est. cost per run |
+|:-|:-|:-|:-|
+| claude-haiku-4-5 | 25/25 (1.00) | none | ~$0.05 |
+| claude-sonnet-4-6 | 24/25 (0.96) | genuine_regression_012 to flaky_test | ~$0.14 |
+| claude-opus-4-8 | 24/25 (0.96) | genuine_regression_012 to flaky_test | ~$0.24 |
+
+**Finding 1: the benchmark is saturated.**
+
+A perfect score means the evaluation set can no longer distinguish between
+models, prompts, or preprocessing variants, because everything passes. This is a
+statement about the benchmark, not about Haiku.
+
+Three reasons to read it that way. The label leakage is still unmeasured (E4),
+and a task where the answer is written into the input is one a small model can
+do perfectly. n is 25, so even a genuinely perfect classifier has a confidence
+interval on true accuracy of roughly 86 percent upward, and 25 of 25 against 24
+of 25 is one example. Two classes have support of 3 and 5.
+
+**Finding 2: cost and capability came out inverted.**
+
+The cheapest model was the only one to score perfectly. The two more capable
+models agreed with each other and disagreed with the label, on the same example,
+in the same direction.
+
+**Finding 3: the one disputed example exposes a real limit of log-only
+classification.**
+
+All three models observed the same fact, that the list came back in the wrong
+order, and split on what it means.
+
+| Model | Answer | Confidence | Reading |
+|:-|:-|:-|:-|
+| Sonnet 4.6 | flaky_test | 0.72 | Test assumes ordering that is not guaranteed |
+| Opus 4.8 | flaky_test | 0.68 | Same argument, independently reached |
+| Haiku 4.5 | genuine_regression | 0.95 | The application returned them in the wrong order |
+
+The sidecar settles it. The injected fault is "List endpoint drops ORDER BY,
+breaking ordered-result expectations". The label is correct: application code
+was changed and the test caught it.
+
+But the two models that got it wrong were not reasoning badly. The regression
+*is* that ordering is no longer guaranteed. So "the application no longer
+guarantees ordering" and "the test assumed ordering it should not have" describe
+the same observable state. What separates them is whether the application was
+*supposed* to guarantee ordering, and that is a product decision which does not
+appear anywhere in the log.
+
+This is the clearest case so far for Phase 2 evidence gathering. A commit diff
+showing `ORDER BY` being removed resolves it immediately. No amount of prompt
+engineering can, because the information is not in the input.
+
+Worth noting the confidences run against the agreement: the two models that
+agreed were the least sure (0.72 and 0.68), and the one that was right was the
+most sure (0.95). Though Haiku's rationale hedges internally, saying the list is
+returning expenses in the wrong order "or the application's list endpoint logic
+has changed", which is arguably overconfident at 0.95.
+
+**Finding 4: this is the price of the E5 fix, made visible.**
+
+Under v1, genuine_regression recall was 1.00 because the category was the
+model's default whenever nothing else announced itself. v2 fixed that by
+requiring application code to be implicated before it can be chosen. Recall is
+now 0.90.
+
+`genuine_regression_012` is where that requirement bites: application code
+genuinely was implicated, but the log does not prove it. Over-calling was traded
+for under-calling, and the under-call lands exactly where the evidence is
+insufficient rather than where the reasoning is poor.
+
+**Confound: temperature was not held constant.**
+
+Haiku and Sonnet ran at temperature 0.0. Opus 4.8 rejects the parameter
+outright, returning `temperature is deprecated for this model`, so it ran with
+sampling uncontrolled. Any Opus difference could be the model or could be the
+sampling. Unavoidable, since the parameter does not exist on that model.
+
+This is a finding in itself. The reproducibility story rests on temperature 0,
+and that guarantee does not survive a model upgrade. `LlmConfig.temperature` is
+now nullable and the parameter is omitted from the request when null, so the
+pipeline can talk to both generations, but a run against a newer model does not
+carry the same guarantee.
+
+**Related gap:** temperature is not part of the label store key. It has never
+varied until now, so nothing has collided, but the same model at two temperature
+settings would currently share a cache entry. Same class of problem as
+`preprocessing_variant`. Noted alongside the `evidence` and `head_sha` fields
+Phase 2 will need.
+
+**Decision: Haiku, and not because it scored highest.**
+
+All three models saturate the benchmark, so accuracy provides no basis to
+choose between them. The one example separating them is a case where the log is
+genuinely insufficient, which no model can be expected to resolve. On that
+basis the correct engineering choice is the cheapest, which is Haiku at roughly
+a third of Sonnet and a fifth of Opus.
+
+The claim being avoided: that Haiku is better at this task than Opus. One
+example, on a saturated benchmark, with unmeasured leakage, is not evidence of
+that.
+
+**Consequence: dev_eval is exhausted as a comparison signal.** Further model or
+prompt comparison against this split is uninformative until the leakage is
+removed (E4) and the dataset is larger. The final_check split remains untouched
+and unrun.
 
 ## E3: Keyword anchored windowing (not started)
 

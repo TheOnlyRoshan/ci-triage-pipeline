@@ -54,8 +54,11 @@ prompt:
   prompts_dir: 'prompts'
 
 llm:
-  model: 'claude-sonnet-4-6'
+  model: 'claude-haiku-4-5-20251001'
   max_tokens: 1024
+  # Set to null for models that reject the parameter. Opus 4.8 and later return
+  # "temperature is deprecated for this model". A run with it omitted does not
+  # carry the same reproducibility guarantee. See EXPERIMENTS.md E2.
   temperature: 0.0
   api_key_env_var: 'ANTHROPIC_API_KEY'
 

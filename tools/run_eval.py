@@ -86,7 +86,15 @@ def main() -> None:
     true_labels, predicted_labels = collect_predictions(examples, config)
     matrix = build_confusion_matrix(true_labels, predicted_labels, config.categories)
     metrics = per_class_metrics(matrix, config.categories)
-    report = format_report(metrics, matrix, config.categories, config.evaluation.low_support_threshold)
+    provenance = {
+        'Model': config.llm.model,
+        'Prompt': config.prompt.version,
+        'Preprocessing': config.preprocessing.variant,
+        'Temperature': str(config.llm.temperature) if config.llm.temperature is not None else 'not sent',
+        'Split': f"{args.split} ({len(examples)} examples)",
+    }
+    report = format_report(metrics, matrix, config.categories,
+                           config.evaluation.low_support_threshold, provenance)
     print(report)
     if args.output:
         output_path = Path(args.output)

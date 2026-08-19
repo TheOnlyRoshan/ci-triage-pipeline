@@ -42,6 +42,9 @@ def call_llm(prompt: str, config) -> str:
     so parse_label_response can be tested against fixture strings with no
     network access. No retry logic either: an API error should surface rather
     than be silently absorbed.
+    Temperature is only sent when the config value is not null. Newer models
+    reject the parameter, so a run against those models does not carry the
+    same reproducibility guarantee as one at a fixed temperature.
 
     Args:
         prompt: Complete prompt from build_prompt.
@@ -56,9 +59,15 @@ def call_llm(prompt: str, config) -> str:
     """
     llm_api_token = get_secret(config.llm.api_key_env_var)
     client = anthropic.Anthropic(api_key=llm_api_token)
-    response = client.messages.create(model=config.llm.model, max_tokens=config.llm.max_tokens,
-                                      temperature=config.llm.temperature,
-                                      messages=[{'role': 'user', 'content': prompt}])
+    request = {
+        'model': config.llm.model,
+        'max_tokens': config.llm.max_tokens,
+        'messages': [{'role': 'user', 'content': prompt}],
+    }
+    if config.llm.temperature is not None:
+        request['temperature'] = config.llm.temperature
+
+    response = client.messages.create(**request)
     return response.content[0].text
 
 

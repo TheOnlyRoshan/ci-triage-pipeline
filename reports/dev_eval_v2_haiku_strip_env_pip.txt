@@ -1,4 +1,4 @@
-Model:         claude-sonnet-4-6
+Model:         claude-haiku-4-5-20251001
 Prompt:        v2
 Preprocessing: strip_env_pip
 Temperature:   0.0
@@ -9,12 +9,12 @@ CLASSIFICATION REPORT
 
 Class                Precision    Recall        F1   Support
 ------------------------------------------------------------
-flaky_test                0.88      1.00      0.93         7
-genuine_regression        1.00      0.90      0.95        10
+flaky_test                1.00      1.00      1.00         7
+genuine_regression        1.00      1.00      1.00        10
 infra                     1.00      1.00      1.00         3
 transient                 1.00      1.00      1.00         5
 ------------------------------------------------------------
-Overall accuracy          0.96                            25
+Overall accuracy          1.00                            25
 
 CONFUSION MATRIX
 (rows = true label, columns = predicted)
@@ -22,7 +22,7 @@ CONFUSION MATRIX
 true \ pred          flaky_tes genuine_r     infra transient
 ------------------------------------------------------------
 flaky_test                   7         0         0         0
-genuine_regression           1         9         0         0
+genuine_regression           0        10         0         0
 infra                        0         0         3         0
 transient                    0         0         0         5
 

@@ -104,25 +104,18 @@ def format_report(
         matrix: dict[str, dict[str, int]],
         categories: list[str],
         low_support_threshold: int,
+        provenance: dict[str, str],
 ) -> str:
     """Render metrics and confusion matrix as an aligned text report.
 
-    Returns a string rather than printing, so the caller can send it to a
-    terminal, a file, or EXPERIMENTS.md without this function knowing which.
-
-    Accuracy and both baselines are derived from the matrix rather than passed
-    in. A hardcoded baseline goes stale the moment the split changes, and a
-    separately-supplied accuracy can disagree with the table beneath it.
+    ...
 
     Args:
-        metrics: Output of per_class_metrics.
-        matrix: Output of build_confusion_matrix.
-        categories: All valid categories, fixing display order.
-        low_support_threshold: Below this, a warning is printed.
-
-    Returns:
-        Multi-line report: per-class table, confusion matrix, baselines, and
-        a low-support warning when any class has fewer than low_support_threshold examples.
+        ...
+        provenance: Label to value pairs describing the run that produced these
+            numbers, rendered as a header. Passed as plain strings rather than
+            as a config object so this module stays free of config types and
+            testable against literals.
     """
     total = sum(sum(row.values()) for row in matrix.values())
     correct = sum(matrix[c][c] for c in categories)
@@ -131,7 +124,14 @@ def format_report(
     name_width = max(len(c) for c in categories) + 2
     rule = "-" * (name_width + 40)
 
-    lines = ["CLASSIFICATION REPORT", "=" * 21, ""]
+    lines = []
+    if provenance:
+        label_width = max(len(k) for k in provenance) + 2
+        for label, value in provenance.items():
+            lines.append(f"{label + ':':<{label_width}}{value}")
+        lines.append("")
+
+    lines += ["CLASSIFICATION REPORT", "=" * 21, ""]
 
     lines.append(
         f"{'Class':<{name_width}}{'Precision':>10}{'Recall':>10}{'F1':>10}{'Support':>10}"

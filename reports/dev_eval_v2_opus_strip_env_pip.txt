@@ -1,7 +1,7 @@
-Model:         claude-sonnet-4-6
+Model:         claude-opus-4-8
 Prompt:        v2
 Preprocessing: strip_env_pip
-Temperature:   0.0
+Temperature:   not sent
 Split:         dev_eval (25 examples)
 
 CLASSIFICATION REPORT
