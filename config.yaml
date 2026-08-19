@@ -50,7 +50,7 @@ dataset:
   local_dir: data/dataset
 
 prompt:
-  version: 'v1'
+  version: 'v2'
   prompts_dir: 'prompts'
 
 llm:

@@ -58,6 +58,11 @@ def find_label(example_id: str, config) -> LabelResult | None:
         The stored LabelResult, or None if the store has no matching record
         (including when the store file does not exist yet).
         When several rows match, the most recent is returned, since the store is append-only.
+
+    Raises:
+        ValueError: If a row is not valid JSON, naming the file and line. A
+        corrupt store must surface rather than be skipped: a skipped row
+        reads as a cache miss and silently re-bills the API call.
     """
     path = _store_path(config)
     if not path.exists():
@@ -66,8 +71,13 @@ def find_label(example_id: str, config) -> LabelResult | None:
     matched_rows = []
 
     with open(path, 'r', encoding='utf-8') as f:
-        for line in f:
-            parsed_line = json.loads(line)
+        for line_number, line in enumerate(f, start=1):
+            try:
+                parsed_line = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Corrupt row in {path} at line {line_number}: {line!r}"
+                ) from e
             if all(parsed_line[k] == v for k, v in key.items()):
                 matched_rows.append(parsed_line)
     if not matched_rows:
