@@ -32,14 +32,14 @@ since both are non deterministic failures.
 
 **Setup**
 
-| Setting               | Value                  |
-|:----------------------|:-----------------------|
-| Split                 | dev_eval (27 examples) |
-| Model                 | claude-sonnet-4-6      |
-| Prompt version        | v1 (zero shot)         |
-| Preprocessing variant | strip_none             |
-| Temperature           | 0.0                    |
-| Window                | head 40, tail 60       |
+| Setting | Value |
+|:-|:-|
+| Split | dev_eval (27 examples) |
+| Model | claude-sonnet-4-6 |
+| Prompt version | v1 (zero shot) |
+| Preprocessing variant | strip_none |
+| Temperature | 0.0 |
+| Window | head 40, tail 60 |
 
 Reproduce with `python -m tools.run_eval` from the project root.
 
@@ -114,6 +114,12 @@ made to the prompt or preprocessing on the strength of it.
    annotation the model happens to read.
 2. Prompt v2 targeting the genuine_regression fallback, measured against E0.
 
+**What actually happened:** the order was reversed. E1 traced one error to
+overlapping category definitions, which pointed directly at a prompt fix, so v2
+was written and run before E4 (see E5). Reading the v2 rationales then showed
+that two of the three remaining errors were mislabelled dataset examples rather
+than classifier failures (see E6). E4 remains open.
+
 ## E1: Preprocessing ablation
 
 **Question:** Does removing the runner env block and pip install output change
@@ -130,12 +136,12 @@ on throughout. 81 additional API calls across the three new variants.
 
 **Results**
 
-| Variant         | flaky P/R   | genuine P/R | infra P/R   | transient P/R | Accuracy |
-|:----------------|:------------|:------------|:------------|:--------------|:---------|
-| strip_none (E0) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
-| strip_env       | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
-| strip_pip       | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
-| strip_env_pip   | 1.00 / 0.86 | 0.77 / 1.00 | 1.00 / 1.00 | 1.00 / 0.71   | 0.89     |
+| Variant | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy |
+|:-|:-|:-|:-|:-|:-|
+| strip_none (E0) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
+| strip_env | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
+| strip_pip | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
+| strip_env_pip | 1.00 / 0.86 | 0.77 / 1.00 | 1.00 / 1.00 | 1.00 / 0.71 | 0.89 |
 
 **Finding: the four variants differ by exactly one example.**
 
@@ -154,12 +160,12 @@ genuine_regression precision change, since predictions in that column drop from
 The obvious explanation was that `infra_004` sat near a decision boundary and a
 shorter prompt tipped it. The stored confidences rule that out:
 
-| Variant       | Label              | Confidence |
-|:--------------|:-------------------|:-----------|
-| strip_none    | genuine_regression | 0.85       |
-| strip_env     | genuine_regression | 0.85       |
-| strip_pip     | genuine_regression | 0.85       |
-| strip_env_pip | infra              | 0.92       |
+| Variant | Label | Confidence |
+|:-|:-|:-|
+| strip_none | genuine_regression | 0.85 |
+| strip_env | genuine_regression | 0.85 |
+| strip_pip | genuine_regression | 0.85 |
+| strip_env_pip | infra | 0.92 |
 
 Three confident wrong answers, then a more confident right one. Truncation was
 also ruled out: the log is 28 lines after stripping against a window threshold
@@ -239,11 +245,11 @@ evaluation setting. A flag that differs between the two is train/serve skew.
 **Setup:** Haiku, Sonnet, and Opus. Prompt version and preprocessing fixed at
 whatever E1 settles on. Full dev_eval run for each.
 
-| Model             | flaky P/R   | genuine P/R | infra P/R   | transient P/R | Accuracy | Cost |
-|:------------------|:------------|:------------|:------------|:--------------|:---------|:-----|
-| claude-sonnet-4-6 | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |      |
-| Haiku             |             |             |             |               |          |      |
-| Opus              |             |             |             |               |          |      |
+| Model | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy | Cost |
+|:-|:-|:-|:-|:-|:-|:-|
+| claude-sonnet-4-6 | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 | |
+| Haiku | | | | | | |
+| Opus | | | | | | |
 
 **Decision:** (pending)
 
@@ -283,13 +289,20 @@ docstring as their primary evidence, both at 0.99 confidence.
 stripped from the log before prompting. The difference in per class recall is
 the inflation.
 
-| Variant                 | flaky P/R   | genuine P/R | infra P/R   | transient P/R | Accuracy |
-|:------------------------|:------------|:------------|:------------|:--------------|:---------|
-| E0 (docstrings present) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71   | 0.85     |
-| Docstrings stripped     |             |             |             |               |          |
+| Variant | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy |
+|:-|:-|:-|:-|:-|:-|
+| E0 (docstrings present) | 1.00 / 0.86 | 0.71 / 1.00 | 1.00 / 0.67 | 1.00 / 0.71 | 0.85 |
+| Docstrings stripped | | | | | |
 
 **Expected outcome:** a drop, concentrated in flaky_test, since that is where
 the docstrings are most explicit.
+
+**Counter-evidence found in E6, worth accounting for:** `transient_001`'s log
+contains the phrase "transient-labeled failure" verbatim, and the model still
+answered genuine_regression, explicitly reasoning past the annotation. Leakage
+being present does not mean the model relies on it. E4 should therefore report
+how often stripping changes the answer, not assume every leaked example was
+decided by the leak.
 
 **Follow up regardless of the number:** rewrite the injected tests with neutral
 names and docstrings, regenerate the logs through CI, and re establish the
@@ -297,6 +310,217 @@ baseline. Stripping docstrings at preprocessing time is a workaround, not a
 fix, because real tests carry legitimate docstrings that are genuine evidence.
 
 **Decision:** (pending)
+
+## E5: Prompt v2, encoding the rubric
+
+**Question:** Does a prompt that faithfully encodes LABELING_RUBRIC.md fix the
+genuine_regression fallback identified in E0 and E1?
+
+**Hypothesis (written before the run):** Yes for `infra_004`, which E1 traced to
+overlapping definitions. Possibly for `transient_001` and `transient_002`, which
+v2's rule about assertion failures caused by external outages was aimed at.
+
+**What changed in v2**
+
+v1 was a paraphrase of the rubric, and the paraphrase inverted the key rule.
+v1 said determinism identifies genuine_regression. The rubric says infra is also
+deterministic, and gives the real discriminator as whether application code is
+involved, asked before the determinism question.
+
+v2 changes:
+
+* Adds the rubric's two question decision procedure as the first instruction,
+  so the model applies an order rather than weighing four definitions.
+* States explicitly that determinism does not identify genuine_regression.
+* Adds the rubric's per class Include, Exclude, and Signal lists.
+* Adds the note that a misconfiguration committed to the repository is still
+  infra, since being version controlled does not make a file application code.
+* Adds five generalised rules from the rubric's resolved edge cases.
+
+**Setup:** dev_eval, claude-sonnet-4-6, strip_env_pip, temperature 0.0. Compared
+against v1 at the same preprocessing variant, so prompt is the only difference.
+
+**Results**
+
+| Variant | flaky P/R | genuine P/R | infra P/R | transient P/R | Accuracy |
+|:-|:-|:-|:-|:-|:-|
+| v1 + strip_env_pip | 1.00 / 0.86 | 0.77 / 1.00 | 1.00 / 1.00 | 1.00 / 0.71 | 0.89 |
+| v2 + strip_env_pip | 0.88 / 1.00 | 0.82 / 0.90 | 1.00 / 1.00 | 1.00 / 0.71 | 0.89 |
+
+**Finding: accuracy is identical, and the errors are different examples.**
+
+24 of 27 both times.
+
+| Example | v1 | v2 |
+|:-|:-|:-|
+| flaky_test_008 | wrong, called genuine_regression | fixed |
+| genuine_regression_012 | correct | broken, called flaky_test |
+| transient_001 | wrong | wrong, unchanged |
+| transient_002 | wrong | wrong, unchanged |
+
+One fixed, one broken, two untouched. The two cancel.
+
+**But the intended behavioural change did happen.**
+
+genuine_regression recall dropped from 1.00 to 0.90. Under v1 it never missed a
+regression because it was the default answer whenever the log did not clearly
+announce another category. Under v2 it missed one.
+
+That is the fallback disappearing, which is what v2 was written to do. The Q1
+first procedure makes the model require evidence that application code is
+implicated, and on `genuine_regression_012` it required more than the log
+provided.
+
+The single column error sink from E0, where all four errors landed in
+genuine_regression, is gone. Per class, v2 is better balanced: flaky_test recall
+0.86 to 1.00, infra recall holding at 1.00, genuine_regression precision 0.77 to
+0.82.
+
+**Decision: adopt v2, on correctness rather than on the number.**
+
+Accuracy is unchanged, so the number is no evidence either way. v2 is adopted
+because it encodes LABELING_RUBRIC.md, which v1 contradicted. A classifier that
+disagrees with its own labeling standard is broken regardless of what it scores.
+
+The claim being avoided: that v2 improved anything. It traded one error for
+another at n=27.
+
+**Caveat:** some of v2's ambiguous case rules come from the rubric's resolved
+edge cases, and those reference dev_eval examples. Part of any v2 gain is the
+prompt now matching the labeling standard rather than being better in general.
+
+**Note on `genuine_regression_012`:** the model read the test as asserting
+`rows[0]` without a guaranteed ordering and called it order dependence, at 0.72
+confidence, the lowest of the three errors. Whether that is wrong depends on
+whether the API guarantees insertion order. Open.
+
+## E6: transient_001 through 003 are not transient failures
+
+**How this was found:** `transient_001` and `transient_002` were predicted
+genuine_regression in six consecutive runs, four v1 preprocessing variants and
+v2. Reading the rationales rather than the scores was what surfaced the cause,
+and the cause is in the dataset, not the classifier.
+
+**The model's reasoning, from v2 at 0.82 confidence:** the test injects a
+simulated network failure via monkeypatch, asserts the application returns 200,
+and the application correctly returns 503. The assertion failure is a mismatch
+between the test's expectation and the application's actual, correct behaviour.
+
+**Checked against the rubric, the label does not hold.**
+
+The rubric defines transient as something outside the repository failing in a
+way that would likely succeed on retry, with both the commit and the CI
+configuration correct.
+
+* Nothing outside the repository failed. The failure is a `monkeypatch` inside
+  the test that raises unconditionally.
+* Nothing would succeed on retry. It fails identically every time.
+
+Walking the rubric's own decision procedure: Q1, is application code at fault?
+No, the app caught `httpx.ConnectError` and returned 503 correctly. Q2, would a
+re-run pass? No. Q2 answering no points at infra, but this is plainly not a
+pipeline configuration problem either. These examples fit none of the four
+categories.
+
+**Root cause: mock based injection cannot produce a transient.**
+
+A real transient is non-deterministic and externally caused. Simulating one
+inside a test produces a deterministic, in-repository failure that only depicts
+a network error. What actually fails is the test's expectation.
+
+**The class splits cleanly by generation method.**
+
+| Source | Examples | What the log shows |
+|:-|:-|:-|
+| captured, mocked | 001, 002, 003 | A test asserting 200 while a correct app returns 503 |
+| synthetic, hand written | 008 to 016 | Real infrastructure failure text: ReadTimeoutError, SERVFAIL, HTTP 500, registry rate limits, hash mismatch, disk exhaustion |
+
+Every synthetic example in dev_eval is classified correctly. Both misses are the
+mocked ones. The class is not hard; three examples in it are not transients.
+
+**An inversion worth recording:** the `captured` examples were expected to be
+the trustworthy ones, since they came from real CI runs rather than being
+written by hand. They are the broken ones. `log_source: captured` describes how
+the log was obtained, not whether the failure was real. The capture was
+faithful; the failure was not a transient.
+
+**Secondary finding: these two examples leak their label and the model
+overrode it.**
+
+`transient_001`'s log contains the comment "so it FAILS when the network is
+down, producing a transient-labeled failure". The phrase "transient-labeled"
+appears verbatim. The model still answered genuine_regression, and its rationale
+states that it considered the annotation and reasoned past it. Relevant to E4:
+leakage does not guarantee the model follows it.
+
+**Decision:** remove `transient_001`, `transient_002`, and `transient_003` from
+the dataset. They satisfy no clause of the transient definition and do not fit
+the other three categories either, so removal is cleaner than relabelling. That
+takes the class from 12 to 9 and dev_eval from 27 to 25.
+
+**Explicitly not done:** no prompt change. The model reasoned correctly from the
+logs it was given. Wording the prompt until it agreed with a label the log does
+not support would be fitting the classifier to a dataset defect, and would
+degrade on real transients.
+
+**Reporting constraint:** removing examples the classifier got wrong inflates
+accuracy by construction. The removals were justified against the rubric and
+decided by reading the logs, not the scores, but any recount must be reported
+alongside the original figure rather than replacing it.
+
+**Follow up:** generating genuine transient examples requires real
+infrastructure failures rather than mocks. The hand written synthetic logs are
+the closest available substitute and they classify correctly, which suggests the
+class is learnable when the log describes an actual external failure.
+
+**Result after exclusion**
+
+Both figures, since the second alone would misrepresent how it was obtained:
+
+| Run | Split size | Correct | Accuracy |
+|:-|:-|:-|:-|
+| v2 + strip_env_pip, as run | 27 | 24 | 0.89 |
+| v2 + strip_env_pip, excluded | 25 | 24 | 0.96 |
+
+The numerator is unchanged. Nothing was re-classified and no API call was made;
+the same 24 correct predictions are now measured against a denominator with two
+known bad examples removed.
+
+```
+Class                Precision    Recall        F1   Support
+flaky_test                0.88      1.00      0.93         7
+genuine_regression        1.00      0.90      0.95        10
+infra                     1.00      1.00      1.00         3
+transient                 1.00      1.00      1.00         5
+Overall accuracy          0.96                            25
+
+true \ pred          flaky_tes genuine_r     infra transient
+flaky_test                   7         0         0         0
+genuine_regression           1         9         0         0
+infra                        0         0         3         0
+transient                    0         0         0         5
+
+Random (4 classes)        0.25
+Majority class            0.40   (genuine_regression)
+```
+
+**The E0 finding is now fully resolved.** genuine_regression precision is 1.00.
+In E0 it was 0.71 and every error in the run landed in that column, because the
+category was the model's default when no other announced itself. It no longer
+over claims at all.
+
+**One error remains, and it may also be a label problem.**
+`genuine_regression_012` is called flaky_test at 0.72 confidence, on the grounds
+that the test asserts `rows[0]` without a guaranteed ordering. Whether that is
+wrong depends on whether the API's list endpoint guarantees insertion order.
+Unresolved, and checkable by reading the application code rather than by running
+anything.
+
+**dev_eval is now exhausted as a tuning signal.** With 24 of 25 correct, any
+further prompt change has one example of headroom, and a change that moves it
+cannot be distinguished from a change that happens to fit this split. Further
+prompt iteration against dev_eval would be overfitting. final_check remains
+untouched and unrun.
 
 ## Template for new entries
 

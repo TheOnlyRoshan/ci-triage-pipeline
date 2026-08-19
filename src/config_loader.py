@@ -77,8 +77,13 @@ class SplitConfig(BaseModel):
         exemplars: Label -> exemplar IDs held out as few-shot candidates.
         final_check: IDs reserved as a touch-once holdout, never used for
             tuning.
+        excluded: IDs dropped from every split by loader.load_examples. Applied
+            after the seeded selection, so final_check still records what seed
+            42 produced over the full dataset and make_split.py continues to
+            verify. See EXPERIMENTS.md E6.
     """
     selection_seed: int
+    excluded: list[str]
     exemplars: dict[str, list[str]]
     final_check: list[str]
 

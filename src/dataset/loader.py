@@ -67,16 +67,23 @@ def load_metadata(dataset_dir: Path) -> list[dict]:
 def load_examples(config, split: str | None = None) -> list[Example]:
     """Load dataset examples, optionally filtered to one split.
 
+    IDs listed in config.split.excluded are dropped from every split, including
+    from the expected counts used for the config against disk drift check. They
+    stay on disk and stay listed in the seeded split, so the selection remains
+    verifiable against the full dataset while the examples themselves are never
+    loaded. See EXPERIMENTS.md E6.
+
     Args:
         config: Loaded PipelineConfig.
         split: 'exemplars', 'final_check', 'dev_eval', or None for all.
                'dev_eval' is derived as the complement of the other two.
 
     Returns:
-        Examples sorted by example_id.
+        Examples sorted by example_id, excluded IDs omitted.
 
     Raises:
-        ValueError: On an unknown split, or if a configured ID has no file on disk.
+        ValueError: On an unknown split, or if a configured ID that is not
+            excluded has no file on disk.
     """
     if split not in {'exemplars', 'final_check', 'dev_eval', None}:
         raise ValueError(
@@ -85,8 +92,12 @@ def load_examples(config, split: str | None = None) -> list[Example]:
 
     records = load_metadata(find_project_root() / config.dataset.local_dir)
 
-    exemplar_ids = {i for ids in config.split.exemplars.values() for i in ids}
-    final_check_ids = set(config.split.final_check)
+    excluded_ids = set(config.split.excluded)
+    records = [r for r in records if r['id'] not in excluded_ids]
+
+    exemplar_ids = {i for ids in config.split.exemplars.values()
+                    for i in ids} - excluded_ids
+    final_check_ids = set(config.split.final_check) - excluded_ids
 
     expected_ids = None
     if split == 'exemplars':

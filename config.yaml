@@ -46,7 +46,7 @@ preprocessing:
 
 dataset:
   repo: https://github.com/TheOnlyRoshan/ci-triage-dataset
-  pinned_sha: '97167a8d9d4d7976f694decfbefd9d97ddc9ba43'
+  pinned_sha: '64fc7517cb6d4b052eb576ddd9c30db7be454760'
   local_dir: data/dataset
 
 prompt:
@@ -67,6 +67,13 @@ evaluation:
 
 split:
   selection_seed: 42
+  # Excluded per EXPERIMENTS.md E6. These are mock based injections: a
+  # monkeypatch raises httpx.ConnectError inside the test, so the failure is
+  # deterministic and originates in the repository. They satisfy no clause of
+  # the transient definition and do not fit the other three categories.
+  # Kept on disk rather than deleted so the finding stays inspectable and the
+  # seeded final_check selection remains verifiable against the full 49.
+  excluded: [ transient_001, transient_002, transient_003 ]
   exemplars:
     flaky_test: [ flaky_test_006, flaky_test_009, flaky_test_013 ]
     genuine_regression: [ genuine_regression_013, genuine_regression_015, genuine_regression_017 ]

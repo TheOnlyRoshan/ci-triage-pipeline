@@ -11,44 +11,58 @@ red three times a day.
 
 ## Categories
 
-| Category             | Meaning                                                                                                            |
-|:---------------------|:-------------------------------------------------------------------------------------------------------------------|
-| `flaky_test`         | Non deterministic failure originating inside the repository: randomness, timing assumptions, test order dependence |
-| `genuine_regression` | A real defect in the code under test, deterministic and reproducible                                               |
-| `infra`              | The CI environment failed to build or configure, so tests never ran                                                |
-| `transient`          | The environment built, but an external dependency failed during execution                                          |
+| Category | Meaning |
+|:-|:-|
+| `flaky_test` | Non deterministic failure originating inside the repository: randomness, timing assumptions, test order dependence |
+| `genuine_regression` | A real defect in the application code under test, deterministic and reproducible |
+| `infra` | The pipeline configuration is wrong, so tests never ran. Deterministic, and no application code is involved |
+| `transient` | Something outside the repository failed in a way that would likely succeed on retry |
 
-The two boundaries that matter are `flaky_test` against `transient` (where does
-the non determinism originate, inside the repo or outside it) and `transient`
-against `infra` (did the environment build at all). Both are stated explicitly
-as disambiguation rules in the prompt.
+The prompt encodes the dataset's labeling rubric directly, including its two
+question decision procedure: ask whether application code is at fault first, and
+only then ask whether a re-run would pass. Determinism alone does not separate
+`genuine_regression` from `infra`, because both are deterministic. That
+distinction is what an earlier prompt version got wrong.
 
 ## Current results
 
-Measured on a held out 27 example split, zero shot, temperature 0.0:
+Measured on a held out 25 example split, zero shot, temperature 0.0, prompt v2:
 
 ```
 Class                Precision    Recall        F1   Support
-flaky_test                1.00      0.86      0.92         7
-genuine_regression        0.71      1.00      0.83        10
-infra                     1.00      0.67      0.80         3
-transient                 1.00      0.71      0.83         7
-Overall accuracy          0.85                            27
+flaky_test                0.88      1.00      0.93         7
+genuine_regression        1.00      0.90      0.95        10
+infra                     1.00      1.00      1.00         3
+transient                 1.00      1.00      1.00         5
+Overall accuracy          0.96                            25
 
 Random baseline           0.25
-Majority class baseline   0.37
+Majority class baseline   0.40
 ```
 
-Two caveats belong with that number, and both are documented in
+Three caveats belong with that number, and all three are documented in
 [EXPERIMENTS.md](EXPERIMENTS.md):
 
-1. All four errors were predicted as `genuine_regression`. No other pair of
-   categories was ever confused. That is a specific, fixable prompt problem
-   rather than diffuse noise.
-2. The number is inflated. The fault injected tests in the dataset carry
-   docstrings that state their own category in plain English, and pytest prints
-   test source on failure, so that text reaches the prompt. Quantifying and
-   removing that effect is the next piece of work.
+1. **The denominator changed.** The same run scored 24 of 27 (0.89) before three
+   examples were excluded, and 24 of 25 (0.96) after. The numerator is
+   identical. Nothing was re-classified. The exclusion was justified against the
+   rubric and decided by reading logs rather than scores, but removing examples
+   the classifier got wrong inflates accuracy by construction, so both figures
+   are reported.
+2. **The dataset leaks labels.** The fault injected tests carry docstrings that
+   state their own category in plain English, and pytest prints test source on
+   failure, so that text reaches the prompt. The size of the effect has not been
+   measured. One example leaked the word "transient-labeled" verbatim and the
+   model still answered otherwise, so leakage being present does not mean the
+   model relies on it.
+3. **Support is small.** `infra` has 3 examples and `transient` has 5. One
+   misclassification moves `infra` recall by 33 points. Per class figures at
+   this scale are directional, not conclusive.
+
+`dev_eval` is now exhausted as a tuning signal: 24 of 25 leaves one example of
+headroom, and any further prompt change that moves it cannot be distinguished
+from a change that happens to suit this split. The `final_check` holdout remains
+untouched and unrun.
 
 ## How it works
 
@@ -93,9 +107,9 @@ mapping.
 Slicing by timestamp does work. Every log line is prefixed with an ISO 8601
 timestamp, and job metadata gives each step a `started_at` and `completed_at`.
 GitHub reports those boundaries only to whole second precision, so the final
-`##[error]` line sometimes falls just outside the window and is clipped.
-Padding by a second recovers it but also pulls in the entire post job cleanup
-block, which would crowd out the actual failure in the tail window downstream.
+`##[error]` line sometimes falls just outside the window and is clipped. Padding
+by a second recovers it but also pulls in the entire post job cleanup block,
+which would crowd out the actual failure in the tail window downstream.
 Precision was chosen over recall.
 
 ### The label store
@@ -110,6 +124,11 @@ show two models agreeing perfectly because the second was never actually called.
 
 Nothing is written when labelling fails. Caching a parse error would make the
 failure permanent until the file was edited by hand.
+
+The store is what makes iteration cheap. Re-running the evaluation while fixing
+the report formatting costs nothing, because the classification question has not
+changed. It is also the audit trail: every label ever produced, with the
+configuration that produced it, including the ones the model got wrong.
 
 ## Setup
 
@@ -128,7 +147,7 @@ Clone the dataset into `data/dataset/`, pinned to the SHA in `config.yaml`:
 
 ```bash
 git clone https://github.com/TheOnlyRoshan/ci-triage-dataset data/dataset
-cd data/dataset && git checkout 97167a8d9d4d7976f694decfbefd9d97ddc9ba43
+cd data/dataset && git checkout <dataset.pinned_sha from config.yaml>
 ```
 
 ## Usage
@@ -163,32 +182,45 @@ Every tunable lives in `config.yaml` and is validated into typed Pydantic models
 at load time, so a bad regex, an out of range temperature, or an overlapping
 split fails at startup rather than midway through a paid run.
 
-| Section         | Controls                                                        |
-|:----------------|:----------------------------------------------------------------|
-| `categories`    | The four labels, cross checked against `src/categories.py`      |
-| `github`        | Repository and token environment variable name                  |
-| `preprocessing` | Noise patterns, ablation flags, window sizes                    |
-| `prompt`        | Template version and directory                                  |
-| `llm`           | Model, temperature, max tokens                                  |
-| `label_store`   | Cache file path                                                 |
-| `split`         | Exemplar and final check IDs, and the seed they were drawn with |
-| `dataset`       | Dataset repository and pinned SHA                               |
+| Section | Controls |
+|:-|:-|
+| `categories` | The four labels, cross checked against `src/categories.py` |
+| `github` | Repository and token environment variable name |
+| `preprocessing` | Noise patterns, ablation flags, window sizes |
+| `prompt` | Template version and directory |
+| `llm` | Model, temperature, max tokens |
+| `label_store` | Cache file path |
+| `evaluation` | Support threshold below which a metric warning is printed |
+| `split` | Exemplar, final check, and excluded IDs, and the seed |
+| `dataset` | Dataset repository and pinned SHA |
 
 Secrets are never in config. Config holds the environment variable *name*, and
 `auth.get_secret()` resolves it at runtime.
 
 ## Dataset and splits
 
-49 examples across the four classes, in a
+49 examples collected across the four classes, in a
 [separate repository](https://github.com/TheOnlyRoshan/ci-triage-dataset) pinned
 by SHA. Real CI logs captured through fault injection, plus synthetic logs where
 a failure mode was impractical to reproduce.
 
-| Split         | Size | Purpose                                             |
-|:--------------|:-----|:----------------------------------------------------|
-| `exemplars`   | 12   | Reserved as few shot candidates, never evaluated on |
-| `dev_eval`    | 27   | Every number reported so far                        |
-| `final_check` | 10   | Untouched holdout                                   |
+| Split | Size | Purpose |
+|:-|:-|:-|
+| `exemplars` | 12 | Reserved as few shot candidates, never evaluated on |
+| `dev_eval` | 25 | Every number reported so far |
+| `final_check` | 9 | Untouched holdout |
+| `excluded` | 3 | Removed from use, kept on disk |
+
+46 of the 49 are in use. `transient_001` through `003` are excluded: each is a
+`monkeypatch` inside a test raising `httpx.ConnectError`, so the failure is
+deterministic and originates in the repository. Nothing external failed and
+nothing would pass on retry, so they satisfy neither clause of the `transient`
+definition, and they do not fit the other three categories either.
+
+They are excluded rather than deleted, and `final_check` still lists
+`transient_003` exactly as seed 42 produced it, so `make_split.py` continues to
+verify the selection against the full 49. `load_examples` subtracts the excluded
+IDs from both the records and the expected counts.
 
 `dev_eval` is derived as the complement of the other two rather than listed in
 config, so it cannot drift out of sync with them.
@@ -207,19 +239,19 @@ get wrong:
   label. Editing the prompt invalidates old labels rather than silently mixing
   them.
 * Dataset pinned by commit SHA.
-* Split selection seeded, and `tools/make_split.py` regenerates it to verify.
-  An earlier bug there is worth recording: iterating a `Counter` built from a
-  sorted list changed class iteration order, so the same seed produced a
-  different split. Fixed by giving each class its own RNG seeded on
-  `f"{seed}:{label}"`, which removes iteration order from the inputs entirely.
+* Split selection seeded, and `tools/make_split.py` regenerates it to verify. An
+  earlier bug there is worth recording: iterating a `Counter` built from a sorted
+  list changed class iteration order, so the same seed produced a different
+  split. Fixed by giving each class its own RNG seeded on `f"{seed}:{label}"`,
+  which removes iteration order from the inputs entirely.
 * Every label persisted with the full four field key that produced it.
 
 ## Project layout
 
 ```
 config.yaml               all tunables, validated at load
-prompts/v1.txt            versioned prompt template
-data/dataset/             the 49 examples (gitignored, cloned separately)
+prompts/                  v1.txt, v2.txt: versioned prompt templates
+data/dataset/             49 collected, 46 in use (gitignored, cloned separately)
 data/labels.jsonl         every label ever produced
 reports/                  saved evaluation reports
 EXPERIMENTS.md            measured decisions, one entry per experiment
@@ -245,13 +277,19 @@ tools/
 Phase 1, the offline labeler, is complete and measured. Remaining work is
 tracked in `EXPERIMENTS.md`:
 
-* Quantify and remove the docstring leakage in the dataset (E4)
-* Prompt v2 targeting the `genuine_regression` fallback
-* Preprocessing ablation (E1) and model comparison (E2)
+* Quantify the docstring leakage in the dataset (E4)
+* Model comparison across Haiku, Sonnet, and Opus (E2). With Sonnet at 24 of 25,
+  the useful question is whether Haiku matches it at a fraction of the cost
+* Keyword anchored windowing against the head plus tail baseline (E3)
 * Unit tests for the pure functions in `metrics.py` and `log_preprocessor.py`
+* Dockerfile
 
 Phase 2 will trigger the pipeline automatically on CI failure and add evidence
 gathering: when confidence is low or the flaky against regression boundary is in
-play, fetch the job's re run history and the commit diff, then re classify. Re
-run history is the stronger signal of the two, since the same commit passing on
-an earlier attempt is close to conclusive evidence of flakiness.
+play, fetch the job's re-run history and the commit diff, then re-classify.
+Re-run history is the stronger signal of the two, since the same commit passing
+on an earlier attempt is close to conclusive evidence of flakiness.
+
+Note that the pipeline is not agentic today. It is a classifier with an
+evaluation harness: one API call, no tools, a fixed sequence. That changes when
+the Phase 2 graph ships.
